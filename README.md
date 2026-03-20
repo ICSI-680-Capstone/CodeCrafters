@@ -24,11 +24,9 @@ codecrafters/
 ├── client/          # Next.js frontend
 │   ├── app/
 │   │   ├── (auth)/  # Route group for login/signup
-│   │   ├── lobby/
-│   │   └── game/
 │   └── components/
 └── server/          # Express + Socket.IO backend
-    ├── index.js
+    ├── server.js
     ├── routes/
     └── socket/
 ```
@@ -44,7 +42,7 @@ cd codecrafters
 docker-compose up
 ```
 
-Client runs on `http://localhost:3000`, server on `http://localhost:4000`.
+Client runs on `http://localhost:3000`, server on `http://localhost:5000`.
 
 ## Team
 
@@ -53,8 +51,8 @@ Built for CSI 680 — Spring 2026 at the University at Albany.
 | Name | GitHub |
 |---|---|
 | Srinivas Mekala | [@sri-nivas1227](https://github.com/sri-nivas1227) |
-| Sai Satwik Bikumandla | — |
-| Mehak Seth | — |
-| Dileep Reddy Chinneluka | — |
+| Sai Satwik Bikumandla | [@SaisatwikBiku](https://github.com/SaisatwikBiku) |
+| Mehak Seth | [@Mehak005](https://github.com/Mehak005) |
+| Dileep Reddy Chinneluka | [@Dileepreddy-01](https://github.com/Dileepreddy-01) |
 
 Advised by **Jeff Offutt**.
