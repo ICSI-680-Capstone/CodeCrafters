@@ -4,49 +4,81 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CodeCrafters 🏫</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Black+Han+Sans&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
 
-  <!-- ── LOGIN SCREEN ──────────────────────────────────── -->
+  <!-- ── LOGIN / LANDING SCREEN ──────────────────────────── -->
   <div id="screen-login" class="screen active">
-    <div class="auth-card">
-      <h1 class="logo">CodeCrafters <span>🏫</span></h1>
-      <p class="tagline">Build a school. Learn Python. Together.</p>
+    <div class="landing-split">
 
-      <div class="form-group">
-        <input id="login-username" type="text" placeholder="Username" maxlength="24" />
+      <!-- LEFT: Full Background image only -->
+      <div class="hero-side"></div>
+
+      <!-- RIGHT: Dark purple panel with all content + form -->
+      <div class="auth-side">
+        <!-- Title + features -->
+        <div class="hero-inner" style="width:100%;max-width:380px;">
+          <h1 class="hero-title">Code<span>Crafters!</span></h1>
+          <p class="hero-sub">Collaborate. Code. Build Your Campus together.</p>
+          <div class="hero-blocks">
+            <div class="hero-block">🧱 Play as Architect or Builder</div>
+            <div class="hero-block">🐍 Learn Python step by step</div>
+            <div class="hero-block">🏆 5 stages · 500 points</div>
+            <div class="hero-block">💬 Chat with your partner</div>
+          </div>
+          <div class="hero-roles" style="margin-bottom:1.5rem;">
+            <div class="role-chip yellow">🧱 Architect</div>
+            <div class="role-chip purple">🔨 Builder</div>
+          </div>
+        </div>
+        <!-- Login / Register form -->
+        <div class="auth-box" style="width:100%;max-width:380px;">
+          <div class="auth-tabs">
+            <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+            <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+          </div>
+          <!-- Login Form -->
+          <div id="form-login">
+            <p class="form-welcome">Ready to play? 🎮</p>
+            <p class="form-sub">Login to jump back in!</p>
+            <div class="form-group">
+              <input id="login-username" type="text" placeholder="👤  Username" maxlength="24" />
+            </div>
+            <div class="form-group">
+              <input id="login-password" type="password" placeholder="🔒  Password" />
+            </div>
+            <button id="btn-login" class="btn btn-primary" style="width:100%">▶ PLAY NOW!</button>
+            <div id="login-error" class="auth-error hidden"></div>
+          </div>
+          <!-- Register Form -->
+          <div id="form-register" class="hidden">
+            <p class="form-welcome">Join the fun! 🎉</p>
+            <p class="form-sub">Create your free account!</p>
+            <div class="form-group">
+              <input id="reg-username" type="text" placeholder="👤  Username" maxlength="24" />
+            </div>
+            <div class="form-group">
+              <input id="reg-password" type="password" placeholder="🔒  Password (min 6 chars)" />
+            </div>
+            <button id="btn-register" class="btn btn-primary" style="width:100%">🚀 Let's Go!</button>
+            <div id="register-error" class="auth-error hidden"></div>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <input id="login-password" type="password" placeholder="Password" />
-      </div>
-      <button id="btn-login" class="btn btn-primary" style="width:100%">Login</button>
-      <div id="login-error" class="auth-error hidden"></div>
-      <p class="auth-switch">Don't have an account? <a href="#" id="go-register">Register</a></p>
+
     </div>
   </div>
 
-  <!-- ── REGISTER SCREEN ───────────────────────────────── -->
-  <div id="screen-register" class="screen">
-    <div class="auth-card">
-      <h1 class="logo">CodeCrafters <span>🏫</span></h1>
-      <p class="tagline">Create your account</p>
+  <!-- ── REGISTER SCREEN (kept for JS compat but hidden) ── -->
+  <div id="screen-register" class="screen" style="display:none!important"></div>
 
-      <div class="form-group">
-        <input id="reg-username" type="text" placeholder="Username" maxlength="24" />
-      </div>
-      <div class="form-group">
-        <input id="reg-password" type="password" placeholder="Password (min 6 chars)" />
-      </div>
-      <button id="btn-register" class="btn btn-primary" style="width:100%">Register</button>
-      <div id="register-error" class="auth-error hidden"></div>
-      <p class="auth-switch">Already have an account? <a href="#" id="go-login">Login</a></p>
-    </div>
-  </div>
-
-  <!-- ── LOBBY SCREEN ──────────────────────────────────── -->
-  <div id="screen-lobby" class="screen">
-    <div class="lobby-card">
+  <!-- ── LOBBY SCREEN ──────────────────────────────────────── -->
+  <div id="screen-lobby" class="screen hero-bg-screen">
+    <div class="hero-overlay"></div>
+    <div class="lobby-card glass-box" style="position:relative;z-index:1;">
       <div class="lobby-header">
         <h1 class="logo">CodeCrafters <span>🏫</span></h1>
         <button id="btn-logout" class="btn btn-secondary btn-sm">Logout</button>
@@ -72,7 +104,7 @@
     </div>
   </div>
 
-  <!-- ── WAITING SCREEN ───────────────────────────────── -->
+  <!-- ── WAITING SCREEN ───────────────────────────────────── -->
   <div id="screen-waiting" class="screen">
     <div class="waiting-card">
       <h2>Session Created!</h2>
@@ -83,7 +115,7 @@
     </div>
   </div>
 
-  <!-- ── GAME SCREEN ───────────────────────────────────── -->
+  <!-- ── GAME SCREEN ───────────────────────────────────────── -->
   <div id="screen-game" class="screen">
     <header class="game-header">
       <span class="game-title">CodeCrafters 🏫</span>
@@ -115,7 +147,7 @@
 
       <section class="panel panel-campus">
         <div class="campus-wrap">
-          <canvas id="campus-canvas" width="400" height="300"></canvas>
+          <canvas id="campus-canvas" width="800" height="500"></canvas>
         </div>
         <div class="chat-wrap">
           <div id="chat-messages" class="chat-messages"></div>
@@ -128,7 +160,7 @@
     </main>
   </div>
 
-  <!-- ── WAITING FOR PARTNER MODAL ─────────────────────── -->
+  <!-- ── WAITING FOR PARTNER MODAL ─────────────────────────── -->
   <div id="modal-waiting" class="modal hidden">
     <div class="modal-box">
       <h2>STATUS: SYNCING...</h2>
@@ -141,7 +173,7 @@
     </div>
   </div>
 
-  <!-- ── LEVEL COMPLETE MODAL ───────────────────────────── -->
+  <!-- ── LEVEL COMPLETE MODAL ───────────────────────────────── -->
   <div id="modal-stage-complete" class="modal hidden">
     <div class="modal-box celebrate">
       <h2 id="complete-title">LEVEL 1 COMPLETE!</h2>
@@ -152,7 +184,7 @@
     </div>
   </div>
 
-  <!-- ── GAME COMPLETE SCREEN ───────────────────────────── -->
+  <!-- ── GAME COMPLETE SCREEN ───────────────────────────────── -->
   <div id="screen-complete" class="screen">
     <div class="complete-card">
       <h1>🎉 School Complete!</h1>
@@ -168,5 +200,30 @@
   <script src="/js/campus.js"></script>
   <script src="/js/auth.js"></script>
   <script src="/js/app.js"></script>
+  <script>
+    function switchTab(tab) {
+      document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    }
+
+    // Keep campus canvas resolution in sync with its actual display size
+    (function() {
+      var canvas = document.getElementById('campus-canvas');
+      if (!canvas) return;
+      var ro = new ResizeObserver(function(entries) {
+        for (var e of entries) {
+          var w = Math.round(e.contentRect.width);
+          var h = Math.round(e.contentRect.height);
+          if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+            canvas.width  = w;
+            canvas.height = h;
+          }
+        }
+      });
+      ro.observe(canvas);
+    })();
+  </script>
 </body>
 </html>

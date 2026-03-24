@@ -1,9 +1,9 @@
 /**
- * auth.js — handles login, register, token storage
+ * auth.js – handles login, register, token storage
  */
 
 const AUTH = {
-  getToken() { return localStorage.getItem('cc_token'); },
+  getToken()    { return localStorage.getItem('cc_token'); },
   getUsername() { return localStorage.getItem('cc_username'); },
   setAuth(token, username) {
     localStorage.setItem('cc_token', token);
@@ -22,10 +22,9 @@ const AUTH = {
   },
 };
 
-// ── On page load — check if already logged in ──────────────
+// ── On page load – check if already logged in ──────────────
 document.addEventListener('DOMContentLoaded', async () => {
   if (AUTH.isLoggedIn()) {
-    // Verify token is still valid
     const res = await fetch('/api/auth/me', { headers: AUTH.authHeaders() });
     if (res.ok) {
       showLobby();
@@ -72,7 +71,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     errorEl.classList.remove('hidden');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Login';
+    btn.textContent = '▶ PLAY NOW!';
   }
 });
 
@@ -111,18 +110,8 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     errorEl.classList.remove('hidden');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Register';
+    btn.textContent = '🚀 Let\'s Go!';
   }
-});
-
-// ── Switch screens ─────────────────────────────────────────
-document.getElementById('go-register').addEventListener('click', (e) => {
-  e.preventDefault();
-  showScreen('register');
-});
-document.getElementById('go-login').addEventListener('click', (e) => {
-  e.preventDefault();
-  showScreen('login');
 });
 
 // ── Show lobby after login ─────────────────────────────────
@@ -130,7 +119,6 @@ async function showLobby() {
   document.getElementById('lobby-username').textContent = AUTH.getUsername();
   showScreen('lobby');
 
-  // Check for active session
   const res = await fetch('/api/game/active', { headers: AUTH.authHeaders() });
   if (res.ok) {
     const { session } = await res.json();
@@ -138,8 +126,6 @@ async function showLobby() {
       document.getElementById('active-session-id').textContent    = session.id;
       document.getElementById('active-session-stage').textContent = session.stage;
       document.getElementById('active-session-banner').classList.remove('hidden');
-
-      // Store for rejoin
       window._activeSession = session;
     }
   }
