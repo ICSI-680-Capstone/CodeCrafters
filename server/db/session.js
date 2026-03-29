@@ -1,6 +1,6 @@
-const { getPool } = require('./postgres');
+import { getPool } from './postgres.js';
 
-async function setSessionState(sessionId, state) {
+export async function setSessionState(sessionId, state) {
   const pool = getPool();
   await pool.query(
     `UPDATE sessions SET state = $1 WHERE id = $2`,
@@ -8,7 +8,7 @@ async function setSessionState(sessionId, state) {
   );
 }
 
-async function getSessionState(sessionId) {
+export async function getSessionState(sessionId) {
   const pool = getPool();
   const { rows } = await pool.query(
     `SELECT state FROM sessions WHERE id = $1`,
@@ -17,9 +17,7 @@ async function getSessionState(sessionId) {
   return rows[0]?.state || null;
 }
 
-async function deleteSessionState(sessionId) {
+export async function deleteSessionState(sessionId) {
   const pool = getPool();
   await pool.query(`DELETE FROM sessions WHERE id = $1`, [sessionId]);
 }
-
-module.exports = { setSessionState, getSessionState, deleteSessionState };

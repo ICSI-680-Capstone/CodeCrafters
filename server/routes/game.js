@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const { getPool } = require('../db/postgres');
-const { setSessionState, getSessionState } = require('../db/session');
-const { authMiddleware } = require('../middleware/auth');
+import { v4 as uuidv4 } from 'uuid';
+import { getPool } from '../db/postgres.js';
+import { setSessionState, getSessionState } from '../db/session.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 router.post('/create', authMiddleware, async (req, res) => {
   const { username, id: userId } = req.user;
@@ -112,4 +112,4 @@ router.get('/:sessionId', authMiddleware, async (req, res) => {
   res.json(state);
 });
 
-module.exports = router;
+export default router;

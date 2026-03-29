@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { getPool } = require('../db/postgres');
-const { JWT_SECRET } = require('../middleware/auth');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { getPool } from '../db/postgres.js';
+import { JWT_SECRET } from '../middleware/auth.js';
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -64,4 +64,4 @@ router.get('/me', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

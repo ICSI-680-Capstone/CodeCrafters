@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { v4: uuidv4 } = require('uuid');
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { v4 as uuidv4 } from 'uuid';
 
 router.post('/run', async (req, res) => {
   const { source_code, expected_output } = req.body;
@@ -39,4 +39,4 @@ router.post('/run', async (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

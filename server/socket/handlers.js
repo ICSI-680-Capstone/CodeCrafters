@@ -1,5 +1,5 @@
-const { getSessionState, setSessionState } = require('../db/session');
-const { getPool } = require('../db/postgres');
+import { getSessionState, setSessionState } from '../db/session.js';
+import { getPool } from '../db/postgres.js';
 
 const TOTAL_STAGES = 5;
 
@@ -106,4 +106,4 @@ async function advanceStage(io, room, sessionId, state) {
   });
 }
 
-module.exports = registerSocketHandlers;
+export default registerSocketHandlers;

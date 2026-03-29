@@ -1,37 +1,41 @@
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const cors = require('cors');
+import 'dotenv/config';
+import express, { json, static as expressStatic } from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import cors from 'cors';
 
-const { connectPostgres } = require('./db/postgres');
-const authRoutes = require('./routes/auth');
-const gameRoutes = require('./routes/game');
-const codeRoutes = require('./routes/code');
-const registerSocketHandlers = require('./socket/handlers');
+import { connectPostgres } from './db/postgres.js';
+import authRoutes from './routes/auth.js';
+import gameRoutes from './routes/game.js';
+import codeRoutes from './routes/code.js';
+import registerSocketHandlers from './socket/handlers.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 });
 
 app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../client/public')));
+app.use(json());
+app.use(expressStatic(join(__dirname, '../client/public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/code', codeRoutes);
 
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/public/index.html'));
+  res.sendFile(join(__dirname, '../client/public/index.html'));
 });
 
 registerSocketHandlers(io);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 async function start() {
   try {
