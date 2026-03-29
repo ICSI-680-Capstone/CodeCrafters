@@ -1,8 +1,9 @@
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
 
 let pool;
 
-async function connectPostgres() {
+export async function connectPostgres() {
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -45,9 +46,7 @@ async function initSchema() {
   console.log('✅  Database schema ready');
 }
 
-function getPool() {
+export function getPool() {
   if (!pool) throw new Error('PostgreSQL not connected yet');
   return pool;
 }
-
-module.exports = { connectPostgres, getPool };
