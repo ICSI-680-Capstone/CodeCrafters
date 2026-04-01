@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express, { json, static as expressStatic } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -14,6 +14,7 @@ import registerSocketHandlers from './socket/handlers.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '.env') });
 
 const app = express();
 const server = createServer(app);
