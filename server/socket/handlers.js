@@ -2,12 +2,29 @@ import { getSessionState, setSessionState } from '../db/session.js';
 import { getPool } from '../db/postgres.js';
 
 const TOTAL_STAGES = 5;
+const activeRoleSockets = new Map();
+const replacedSockets = new Set();
+
+function sessionRoleKey(sessionId, role) {
+  return `${sessionId}:${role}`;
+}
 
 function registerSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
     socket.on('join_room', async ({ sessionId, playerName, role }) => {
+      const key = sessionRoleKey(sessionId, role);
+      const previousSocketId = activeRoleSockets.get(key);
+      if (previousSocketId && previousSocketId !== socket.id) {
+        const previousSocket = io.sockets.sockets.get(previousSocketId);
+        if (previousSocket) {
+          replacedSockets.add(previousSocketId);
+          previousSocket.disconnect(true);
+        }
+      }
+      activeRoleSockets.set(key, socket.id);
+
       const room = `session:${sessionId}`;
       socket.join(room);
       socket.data = { sessionId, playerName, role };
@@ -22,15 +39,21 @@ function registerSocketHandlers(io) {
       console.log(`${playerName} (${role}) joined room ${room}`);
     });
 
-    socket.on('chat_message', async ({ sessionId, playerName, message }) => {
-      const room = `session:${sessionId}`;
-      const entry = { playerName, message, timestamp: Date.now() };
+    socket.on('chat_message', async ({ sessionId, message }) => {
+      const socketSessionId = socket.data?.sessionId;
+      const playerName = socket.data?.playerName;
+      const role = socket.data?.role;
+      const effectiveSessionId = socketSessionId || sessionId;
+      if (!effectiveSessionId || !playerName || !role || !message?.trim()) return;
 
-      const state = await getSessionState(sessionId);
+      const room = `session:${effectiveSessionId}`;
+      const entry = { playerName, role, message, timestamp: Date.now() };
+
+      const state = await getSessionState(effectiveSessionId);
       if (state) {
         state.chat.push(entry);
         if (state.chat.length > 100) state.chat.shift();
-        await setSessionState(sessionId, state);
+        await setSessionState(effectiveSessionId, state);
       }
 
       io.to(room).emit('chat_message', entry);
@@ -60,7 +83,15 @@ function registerSocketHandlers(io) {
 
     socket.on('disconnect', () => {
       const { sessionId, playerName, role } = socket.data || {};
-      if (sessionId) {
+      const replaced = replacedSockets.has(socket.id);
+      if (replaced) replacedSockets.delete(socket.id);
+      if (sessionId && role) {
+        const key = sessionRoleKey(sessionId, role);
+        if (activeRoleSockets.get(key) === socket.id) {
+          activeRoleSockets.delete(key);
+        }
+      }
+      if (sessionId && !replaced) {
         const room = `session:${sessionId}`;
         io.to(room).emit('player_disconnected', { playerName, role });
       }

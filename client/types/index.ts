@@ -31,6 +31,7 @@ export interface ChatMessage {
   id: string;
   sender: string;
   message: string;
+  role?: Role;
   isSystem?: boolean;
 }
 

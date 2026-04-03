@@ -97,8 +97,15 @@ function WaitingContent() {
 
     return () => {
       if (pollTimer) clearInterval(pollTimer);
+      const socket = socketRef.current;
+      if (socket) {
+        socket.off("connect");
+        socket.off("player_joined");
+        socket.off("connect_error");
+        socket.off("error");
+      }
       if (!transitioningRef.current) {
-        socketRef.current?.disconnect();
+        socket?.disconnect();
         socketRef.current = null;
       }
     };

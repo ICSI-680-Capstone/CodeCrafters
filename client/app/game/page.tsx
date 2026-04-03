@@ -58,10 +58,15 @@ export default function GamePage() {
   }, [messages]);
 
   useEffect(() => {
+    let activeSocket: any = null;
+    let createdSocket: any = null;
+
     const initSocket = async () => {
       if (!state.socket) {
         const { io } = await import("socket.io-client");
         const socket = io(SERVER_URL, { auth: { token: AUTH.getToken() } });
+        activeSocket = socket;
+        createdSocket = socket;
         socket.on("connect", () => {
           socket.emit("join_room", { sessionId: state.sessionId, playerName: state.playerName, role: state.role });
         });
@@ -69,6 +74,7 @@ export default function GamePage() {
         socketRef.current = socket;
         attachListeners(socket);
       } else {
+        activeSocket = state.socket;
         attachListeners(state.socket);
       }
     };
@@ -80,8 +86,8 @@ export default function GamePage() {
       socket.off("game_complete");
       socket.off("player_disconnected");
 
-      socket.on("chat_message", ({ playerName, message }: any) => {
-        setMessages((prev) => [...prev, { id: uid(), sender: playerName, message, isSystem: false }]);
+      socket.on("chat_message", ({ playerName, message, role }: any) => {
+        setMessages((prev) => [...prev, { id: uid(), sender: playerName, role, message, isSystem: false }]);
       });
       socket.on("partner_status", ({ ready, allReady }: any) => {
         if (ready && !allReady) {
@@ -104,6 +110,25 @@ export default function GamePage() {
     };
 
     if (state.sessionId) initSocket();
+
+    return () => {
+      const socket = activeSocket || socketRef.current;
+      if (!socket) return;
+
+      socket.off("chat_message");
+      socket.off("partner_status");
+      socket.off("stage_complete");
+      socket.off("game_complete");
+      socket.off("player_disconnected");
+
+      if (createdSocket && socket === createdSocket) {
+        socket.disconnect();
+        if (socketRef.current === socket) {
+          socketRef.current = null;
+          updateState({ socket: null });
+        }
+      }
+    };
   }, [state.sessionId]); // eslint-disable-line
 
   const handleRun = async () => {
@@ -248,7 +273,12 @@ export default function GamePage() {
             <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-[0.6rem] text-[0.8rem] flex flex-col gap-[0.3rem]">
               {messages.map((m) => (
                 <div key={m.id} className="flex gap-2">
-                  {!m.isSystem && <span className="text-[#7c3aed] font-[900]">{m.sender}:</span>}
+                  {!m.isSystem && (
+                    <span className="text-[#7c3aed] font-[900]">
+                      {m.sender}
+                      {m.role ? ` (${m.role})` : ""}:
+                    </span>
+                  )}
                   <span className={`font-bold ${m.isSystem ? "text-[var(--text-muted)] italic" : "text-[var(--text)]"}`}>
                     {m.message}
                   </span>
