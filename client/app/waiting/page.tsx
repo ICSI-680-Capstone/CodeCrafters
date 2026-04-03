@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
+import { SERVER_URL } from "../CONSTANT";
 
 function WaitingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { state, updateState } = useGame();
+  const transitioningRef = useRef(false);
+  const socketRef = useRef<any>(null);
 
   const sessionId = searchParams.get("sessionId") || state.sessionId || "------";
   const role = searchParams.get("role") || state.role || "Architect";
@@ -17,34 +20,72 @@ function WaitingContent() {
     if (!AUTH.isLoggedIn()) { router.replace("/login"); return; }
     if (!sessionId || sessionId === "------") { router.replace("/lobby"); return; }
 
-    let socket: any;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    const transitionToGame = (gameState: any, socket?: any) => {
+      if (transitioningRef.current) return;
+      if (!gameState?.players?.Architect || !gameState?.players?.Builder) return;
+
+      transitioningRef.current = true;
+      updateState({
+        socket: socket || socketRef.current,
+        sessionId: gameState.sessionId || sessionId,
+        playerName: AUTH.getUsername(),
+        role: role as any,
+        currentStage: gameState.stage,
+        score: gameState.score,
+        completedStages: gameState.stage - 1,
+      });
+      router.replace("/game");
+    };
+
     const connectSocket = async () => {
       const { io } = await import("socket.io-client");
-      socket = io({ auth: { token: AUTH.getToken() } });
+      const socket = io(SERVER_URL, {
+        auth: { token: AUTH.getToken() },
+        reconnection: true,
+        reconnectionAttempts: 8,
+      });
+      socketRef.current = socket;
 
       socket.on("connect", () => {
+        updateState({ socket, sessionId, playerName: AUTH.getUsername(), role: role as any });
         socket.emit("join_room", { sessionId, playerName: AUTH.getUsername(), role });
       });
 
-      socket.on("player_joined", ({ playerName, role: joinedRole, state: gameState }: any) => {
-        if (gameState?.players?.Architect && gameState?.players?.Builder) {
-          updateState({
-            socket,
-            sessionId: gameState.sessionId || sessionId,
-            playerName: AUTH.getUsername(),
-            role: role as any,
-            currentStage: gameState.stage,
-            score: gameState.score,
-            completedStages: gameState.stage - 1,
-          });
-          router.push("/game");
-        }
+      socket.on("player_joined", ({ state: gameState }: any) => {
+        transitionToGame(gameState, socket);
+      });
+
+      socket.on("connect_error", () => {
+        // Poll fallback below handles transition if socket is temporarily unstable.
       });
 
       socket.on("error", ({ message }: any) => { alert("Server error: " + message); });
     };
 
+    const checkSessionReady = async () => {
+      try {
+        const res = await fetch(`${SERVER_URL}/api/game/${sessionId}`, { headers: AUTH.authHeaders() });
+        if (!res.ok) return;
+        const gameState = await res.json();
+        transitionToGame(gameState);
+      } catch {
+        // Ignore transient fetch errors while waiting.
+      }
+    };
+
     connectSocket();
+    checkSessionReady();
+    pollTimer = setInterval(checkSessionReady, 1500);
+
+    return () => {
+      if (pollTimer) clearInterval(pollTimer);
+      if (!transitioningRef.current) {
+        socketRef.current?.disconnect();
+        socketRef.current = null;
+      }
+    };
   }, [sessionId, role, router, updateState]);
 
   return (

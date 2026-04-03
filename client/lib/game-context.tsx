@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from "react";
 import { GameState, Role } from "@/types";
 
 interface GameContextType {
@@ -28,11 +28,14 @@ export const GameContext = createContext<GameContextType>({
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GameState>(defaultState);
 
-  const updateState = (patch: Partial<GameState>) =>
+  const updateState = useCallback((patch: Partial<GameState>) => {
     setState((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const value = useMemo(() => ({ state, setState, updateState }), [state, updateState]);
 
   return (
-    <GameContext.Provider value={{ state, setState, updateState }}>
+    <GameContext.Provider value={value}>
       {children}
     </GameContext.Provider>
   );

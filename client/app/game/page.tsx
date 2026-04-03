@@ -61,7 +61,7 @@ export default function GamePage() {
     const initSocket = async () => {
       if (!state.socket) {
         const { io } = await import("socket.io-client");
-        const socket = io({ auth: { token: AUTH.getToken() } });
+        const socket = io(SERVER_URL, { auth: { token: AUTH.getToken() } });
         socket.on("connect", () => {
           socket.emit("join_room", { sessionId: state.sessionId, playerName: state.playerName, role: state.role });
         });
