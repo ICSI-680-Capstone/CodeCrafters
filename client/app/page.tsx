@@ -16,7 +16,7 @@ export default function HomePage() {
             headers: AUTH.authHeaders(),
           });
           if (res.ok) {
-            router.replace("/lobby");
+            router.replace("/dashboard");
             return;
           } else {
             AUTH.clearAuth();
