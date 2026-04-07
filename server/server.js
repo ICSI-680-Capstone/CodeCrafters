@@ -10,6 +10,7 @@ import { connectPostgres } from './db/postgres.js';
 import authRoutes from './routes/auth.js';
 import gameRoutes from './routes/game.js';
 import codeRoutes from './routes/code.js';
+import dashboardRoutes from './routes/dashboard.js';
 import registerSocketHandlers from './socket/handlers.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +30,7 @@ app.use(expressStatic(join(__dirname, '../client/public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/code', codeRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, '../client/public/index.html'));
