@@ -83,6 +83,42 @@ router.post('/join', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/game/create-ai — create a solo session with an AI Builder
+router.post('/create-ai', authMiddleware, async (req, res) => {
+  const { username, id: userId } = req.user;
+  const pool = getPool();
+  const sessionId = uuidv4().slice(0, 8).toUpperCase();
+
+  try {
+    const initialState = {
+      sessionId,
+      stage: 1,
+      score: 0,
+      ai_game: true,
+      players: {
+        Architect: { name: username, userId, ready: false },
+        Builder:   { name: 'AI Buddy', userId: null, isAI: true, ready: false },
+      },
+      chat: [],
+    };
+
+    await pool.query(
+      'INSERT INTO sessions (id, state) VALUES ($1, $2)',
+      [sessionId, JSON.stringify(initialState)]
+    );
+    // Only insert the human player — AI has no users row
+    await pool.query(
+      'INSERT INTO players (session_id, user_id, name, role) VALUES ($1, $2, $3, $4)',
+      [sessionId, userId, username, 'Architect']
+    );
+
+    res.json({ sessionId, role: 'Architect', stage: 1 });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create AI session' });
+  }
+});
+
 // GET active session for logged in user
 router.get('/active', authMiddleware, async (req, res) => {
   const { id: userId } = req.user;

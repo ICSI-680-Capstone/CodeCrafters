@@ -94,18 +94,18 @@ export default function DashboardPage() {
   const handleLogout = () => { AUTH.clearAuth(); router.push("/login"); };
 
   const handleStartBuilding = async () => {
-    if (playMode === "ai") { alert("AI mode coming soon!"); return; }
-
     setLoading(true);
     try {
-      const res = await fetch(`${SERVER_URL}/api/game/create`, {
+      const endpoint = playMode === "ai" ? "/api/game/create-ai" : "/api/game/create";
+      const res = await fetch(`${SERVER_URL}${endpoint}`, {
         method: "POST",
         headers: AUTH.authHeaders(),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || "Could not create session."); return; }
-      updateState({ playerName: AUTH.getUsername(), sessionId: data.sessionId, role: data.role });
-      router.push(`/waiting?sessionId=${data.sessionId}&role=${data.role}`);
+      updateState({ playerName: AUTH.getUsername(), sessionId: data.sessionId, role: data.role, currentStage: 1 });
+      // AI games skip the waiting room — go straight to the game
+      router.push(playMode === "ai" ? "/game" : `/waiting?sessionId=${data.sessionId}&role=${data.role}`);
     } catch {
       alert("Could not connect to server.");
     } finally {

@@ -1,5 +1,6 @@
 import { getSessionState, setSessionState } from '../db/session.js';
 import { getPool } from '../db/postgres.js';
+import { generateAIChatResponse } from '../ai.js';
 
 const TOTAL_STAGES = 5;
 const activeRoleSockets = new Map();
@@ -57,6 +58,23 @@ function registerSocketHandlers(io) {
       }
 
       io.to(room).emit('chat_message', entry);
+
+      // AI game: reply after a short delay
+      if (state?.ai_game && role !== 'Builder') {
+        const currentStage = state.stage;
+        const delay = 1000 + Math.random() * 1500;
+        setTimeout(async () => {
+          const aiText = await generateAIChatResponse(message, currentStage);
+          const aiEntry = { playerName: 'AI Buddy', role: 'Builder', message: aiText, timestamp: Date.now() };
+          const freshState = await getSessionState(effectiveSessionId);
+          if (freshState) {
+            freshState.chat.push(aiEntry);
+            if (freshState.chat.length > 100) freshState.chat.shift();
+            await setSessionState(effectiveSessionId, freshState);
+          }
+          io.to(room).emit('chat_message', aiEntry);
+        }, delay);
+      }
     });
 
     socket.on('task_complete', async ({ sessionId, role }) => {
@@ -78,6 +96,17 @@ function registerSocketHandlers(io) {
 
       if (state.players.Architect?.ready && state.players.Builder?.ready) {
         await advanceStage(io, room, sessionId, state);
+      } else if (state.ai_game && state.players.Architect?.ready && !state.players.Builder?.ready) {
+        // AI auto-completes its task after a realistic delay
+        const delay = 2000 + Math.random() * 3000;
+        setTimeout(async () => {
+          const freshState = await getSessionState(sessionId);
+          if (!freshState || !freshState.players.Builder) return;
+          freshState.players.Builder.ready = true;
+          await setSessionState(sessionId, freshState);
+          io.to(room).emit('partner_status', { role: 'Builder', ready: true, allReady: true });
+          await advanceStage(io, room, sessionId, freshState);
+        }, delay);
       }
     });
 
