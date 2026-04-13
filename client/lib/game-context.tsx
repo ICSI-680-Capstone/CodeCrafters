@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from "react";
-import { GameState, Role } from "@/types";
+import { GameState } from "@/types";
 
 interface GameContextType {
   state: GameState;
@@ -15,6 +15,7 @@ const defaultState: GameState = {
   playerName: null,
   role: null,
   currentStage: 1,
+  level: 1,
   score: 0,
   completedStages: 0,
 };

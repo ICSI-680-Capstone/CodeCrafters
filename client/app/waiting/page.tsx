@@ -49,6 +49,7 @@ function WaitingContent() {
         playerName: AUTH.getUsername(),
         role: role as any,
         currentStage: gameState.stage,
+        level: (gameState.level ?? 1) as 1 | 2 | 3,
         score: gameState.score,
         completedStages: gameState.stage - 1,
       });

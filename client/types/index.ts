@@ -1,11 +1,15 @@
 export type Role = "Architect" | "Builder";
 
+// 1 = Foundation (variables / IO)  2 = Walls (conditionals / loops / lists)  3 = Roof (functions)
+export type Level = 1 | 2 | 3;
+
 export interface GameState {
   socket: any | null;
   sessionId: string | null;
   playerName: string | null;
   role: Role | null;
   currentStage: number;
+  level: Level;
   score: number;
   completedStages: number;
 }
@@ -21,9 +25,11 @@ export interface Task {
 export interface Stage {
   stageNumber: number;
   building: string;
-  tasks: {
-    Architect: Task;
-    Builder: Task;
+  levels: {
+    [L in Level]: {
+      Architect: Task;
+      Builder: Task;
+    };
   };
 }
 

@@ -13,22 +13,22 @@ interface DashboardStats {
   pointsEarned: number;
 }
 
+// Kept in lockstep with STAGES in client/lib/stages.ts (5 stages = 5 buildings)
 const BUILDINGS = [
-  { id: "library",      name: "Library",      emoji: "📚" },
-  { id: "cafeteria",    name: "Cafeteria",    emoji: "🍽️" },
-  { id: "playground",   name: "Playground",   emoji: "🏃" },
-  { id: "gym",          name: "Gym",          emoji: "💪" },
-  { id: "computer-lab", name: "Computer Lab", emoji: "💻" },
+  { id: "library",     name: "Library",     emoji: "📚" },
+  { id: "classroom",   name: "Classroom",   emoji: "🪑" },
+  { id: "cafeteria",   name: "Cafeteria",   emoji: "🍽️" },
+  { id: "science-lab", name: "Science Lab", emoji: "🧪" },
+  { id: "playground",  name: "Playground",  emoji: "🏃" },
 ];
 
-// Static progress — replace with API data once building-progress table exists
-const BUILDING_PROGRESS: Record<string, { pct: number; label: string }> = {
-  library:       { pct: 60,  label: "60%" },
-  cafeteria:     { pct: 25,  label: "25%" },
-  playground:    { pct: 100, label: "Complete!" },
-  gym:           { pct: 0,   label: "Not started" },
-  "computer-lab":{ pct: 0,   label: "Not started" },
-};
+type BuildingProgress = Record<string, { pct: number; label: string }>;
+
+// Shown until the server replies; every building starts at 0.
+const EMPTY_PROGRESS: BuildingProgress = BUILDINGS.reduce(
+  (acc, b) => ({ ...acc, [b.id]: { pct: 0, label: "Not started" } }),
+  {},
+);
 
 const LEVELS = [
   {
@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const [selectedBuilding, setSelectedBuilding] = useState("library");
   const [selectedLevel, setSelectedLevel]   = useState(1);
   const [loading, setLoading]               = useState(false);
+  const [buildingProgress, setBuildingProgress] = useState<BuildingProgress>(EMPTY_PROGRESS);
 
   useEffect(() => {
     if (!AUTH.isLoggedIn()) { router.replace("/login"); return; }
@@ -83,10 +84,16 @@ export default function DashboardPage() {
 
     (async () => {
       try {
-        const res = await fetch(`${SERVER_URL}/api/dashboard/stats`, {
-          headers: AUTH.authHeaders(),
-        });
-        if (res.ok) setStats(await res.json());
+        const [statsRes, buildingsRes] = await Promise.all([
+          fetch(`${SERVER_URL}/api/dashboard/stats`, { headers: AUTH.authHeaders() }),
+          fetch(`${SERVER_URL}/api/dashboard/buildings`, { headers: AUTH.authHeaders() }),
+        ]);
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (buildingsRes.ok) {
+          const live = (await buildingsRes.json()) as BuildingProgress;
+          // Merge so any missing keys fall back to defaults
+          setBuildingProgress({ ...EMPTY_PROGRESS, ...live });
+        }
       } catch { /* network error — keep zeros */ }
     })();
   }, [router]);
@@ -96,14 +103,28 @@ export default function DashboardPage() {
   const handleStartBuilding = async () => {
     setLoading(true);
     try {
+      // Map the selected building → its stage number (1..5) in STAGES.
+      const startStage = Math.max(
+        1,
+        BUILDINGS.findIndex((b) => b.id === selectedBuilding) + 1,
+      );
+
       const endpoint = playMode === "ai" ? "/api/game/create-ai" : "/api/game/create";
       const res = await fetch(`${SERVER_URL}${endpoint}`, {
         method: "POST",
         headers: AUTH.authHeaders(),
+        body: JSON.stringify({ startStage, level: selectedLevel }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || "Could not create session."); return; }
-      updateState({ playerName: AUTH.getUsername(), sessionId: data.sessionId, role: data.role, currentStage: 1 });
+      updateState({
+        playerName: AUTH.getUsername(),
+        sessionId: data.sessionId,
+        role: data.role,
+        currentStage: data.stage ?? startStage,
+        level: (data.level ?? selectedLevel) as 1 | 2 | 3,
+        completedStages: (data.stage ?? startStage) - 1,
+      });
       // AI games skip the waiting room — go straight to the game
       router.push(playMode === "ai" ? "/game" : `/waiting?sessionId=${data.sessionId}&role=${data.role}`);
     } catch {
@@ -207,7 +228,7 @@ export default function DashboardPage() {
           <h3 className="text-[11px] font-black tracking-widest text-white/60 mb-3">CHOOSE A BUILDING</h3>
           <div className="grid grid-cols-5 gap-3">
             {BUILDINGS.map((b) => {
-              const prog       = BUILDING_PROGRESS[b.id];
+              const prog       = buildingProgress[b.id] ?? { pct: 0, label: "Not started" };
               const isSelected = selectedBuilding === b.id;
               const isComplete = prog.pct === 100;
               const barColor   = isComplete ? "#22c55e" : prog.pct > 0 ? "#f59e0b" : "#374151";

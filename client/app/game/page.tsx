@@ -30,7 +30,11 @@ export default function GamePage() {
   const chatRef = useRef<HTMLDivElement>(null);
 
   const [showWaiting, setShowWaiting] = useState(false);
-  const [stageComplete, setStageComplete] = useState<{ stage: number; score: number } | null>(null);
+  const [stageComplete, setStageComplete] = useState<{
+    stage: number;
+    score: number;
+    nextStage: number;
+  } | null>(null);
 
   const socketRef = useRef<any>(state.socket);
   socketRef.current = state.socket;
@@ -39,12 +43,12 @@ export default function GamePage() {
     (stageNumber: number) => {
       const stage = STAGES[stageNumber - 1];
       if (!stage || !state.role) return;
-      const task = stage.tasks[state.role];
+      const task = stage.levels[state.level][state.role];
       setCode(task.starterCode);
       setConsoleText("Output will appear here...");
       setConsoleError(false);
     },
-    [state.role],
+    [state.role, state.level],
   );
 
   useEffect(() => {
@@ -97,7 +101,7 @@ export default function GamePage() {
       socket.on("stage_complete", ({ completedStage, nextStage, score }: any) => {
         updateState({ completedStages: completedStage, score, currentStage: nextStage });
         setShowWaiting(false);
-        setStageComplete({ stage: completedStage, score });
+        setStageComplete({ stage: completedStage, score, nextStage });
       });
       socket.on("game_complete", ({ state: gameState }: any) => {
         setShowWaiting(false);
@@ -138,7 +142,7 @@ export default function GamePage() {
     setConsoleError(false);
     try {
       const stage = STAGES[state.currentStage - 1];
-      const task = stage.tasks[state.role!];
+      const task = stage.levels[state.level][state.role!];
       const res = await fetch(`${SERVER_URL}/api/code/run`, {
         method: "POST",
         headers: AUTH.authHeaders(),
@@ -168,10 +172,14 @@ export default function GamePage() {
     setChatInput("");
   };
 
-  const handleNextLevel = () => { setStageComplete(null); loadStage(state.currentStage); };
+  const handleNextLevel = () => {
+    const next = stageComplete?.nextStage ?? state.currentStage;
+    setStageComplete(null);
+    loadStage(next);
+  };
 
   const stage = STAGES[state.currentStage - 1];
-  const task = stage && state.role ? stage.tasks[state.role] : null;
+  const task = stage && state.role ? stage.levels[state.level][state.role] : null;
   const progress = ((state.currentStage - 1) / 5) * 100;
 
   return (

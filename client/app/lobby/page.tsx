@@ -62,7 +62,12 @@ export default function LobbyPage() {
       const res = await fetch(`${SERVER_URL}/api/game/create`, { method: "POST", headers: AUTH.authHeaders() });
       const data = await res.json();
       if (!res.ok) { alert(data.error || "Could not create session."); setStatus("Status: Ready"); return; }
-      updateState({ playerName: AUTH.getUsername(), sessionId: data.sessionId, role: data.role });
+      updateState({
+        playerName: AUTH.getUsername(),
+        sessionId: data.sessionId,
+        role: data.role,
+        level: (data.level ?? 1) as 1 | 2 | 3,
+      });
       router.push(`/waiting?sessionId=${data.sessionId}&role=${data.role}`);
     } catch {
       alert("Could not connect to server."); setStatus("Status: Ready");
@@ -81,7 +86,14 @@ export default function LobbyPage() {
       const data = await res.json();
       if (!res.ok) { alert(data.error || "Could not join session."); setStatus("Status: Ready"); return; }
       AUTH.clearPendingInviteSessionId();
-      updateState({ playerName: AUTH.getUsername(), sessionId: data.sessionId, role: data.role, currentStage: data.stage });
+      updateState({
+        playerName: AUTH.getUsername(),
+        sessionId: data.sessionId,
+        role: data.role,
+        currentStage: data.stage,
+        level: (data.level ?? 1) as 1 | 2 | 3,
+        completedStages: Math.max(0, (data.stage ?? 1) - 1),
+      });
       router.push("/game");
     } catch {
       alert("Could not connect to server."); setStatus("Status: Ready");
@@ -108,7 +120,14 @@ export default function LobbyPage() {
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error); return; }
-      updateState({ playerName: AUTH.getUsername(), sessionId: activeSession.id, role: data.role, currentStage: data.stage });
+      updateState({
+        playerName: AUTH.getUsername(),
+        sessionId: activeSession.id,
+        role: data.role,
+        currentStage: data.stage,
+        level: (data.level ?? 1) as 1 | 2 | 3,
+        completedStages: Math.max(0, (data.stage ?? 1) - 1),
+      });
       router.push("/game");
     } catch { alert("Could not reconnect."); }
   };
