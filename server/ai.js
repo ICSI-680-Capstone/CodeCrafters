@@ -1,13 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-let client = null;
-function getClient() {
-  if (!client && process.env.ANTHROPIC_API_KEY) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
-  return client;
-}
-
 const FALLBACKS = [
   "Great idea! Let me try that approach too.",
   "I'm working on my part — almost done!",
@@ -18,8 +8,22 @@ const FALLBACKS = [
   "Almost there! Keep going 💪",
 ];
 
+// Lazy-load the SDK so a missing package never crashes the server
+let _client = null;
+async function getClient() {
+  if (_client) return _client;
+  if (!process.env.ANTHROPIC_API_KEY) return null;
+  try {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    return _client;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateAIChatResponse(userMessage, stage) {
-  const ai = getClient();
+  const ai = await getClient();
   if (!ai) return FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
 
   try {
