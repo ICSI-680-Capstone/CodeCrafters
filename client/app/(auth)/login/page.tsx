@@ -48,7 +48,7 @@ export default function LoginPage() {
         AUTH.setPendingInviteSessionId(inviteSessionId);
         router.push(`/lobby?sessionId=${encodeURIComponent(inviteSessionId)}`);
       } else {
-        router.push("/lobby");
+        router.push("/dashboard");
       }
     } catch {
       setLoginError("Could not connect to server.");
@@ -80,7 +80,7 @@ export default function LoginPage() {
         AUTH.setPendingInviteSessionId(inviteSessionId);
         router.push(`/lobby?sessionId=${encodeURIComponent(inviteSessionId)}`);
       } else {
-        router.push("/lobby");
+        router.push("/dashboard");
       }
     } catch {
       setRegError("Could not connect to server.");
