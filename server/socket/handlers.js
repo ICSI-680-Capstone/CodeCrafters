@@ -1,5 +1,5 @@
 import { getSessionState, setSessionState } from '../db/session.js';
-import { getPool } from '../db/postgres.js';
+import { Session } from '../db/mongodb.js';
 import { generateAIChatResponse } from '../ai.js';
 
 const TOTAL_STAGES = 5;
@@ -135,8 +135,7 @@ async function advanceStage(io, room, sessionId, state) {
     await setSessionState(sessionId, state);
 
     try {
-      const pool = getPool();
-      await pool.query('UPDATE sessions SET completed = TRUE WHERE id = $1', [sessionId]);
+      await Session.updateOne({ _id: sessionId }, { $set: { completed: true } });
     } catch (_) {}
 
     io.to(room).emit('game_complete', { state });
@@ -151,11 +150,7 @@ async function advanceStage(io, room, sessionId, state) {
   await setSessionState(sessionId, state);
 
   try {
-    const pool = getPool();
-    await pool.query(
-      'UPDATE sessions SET stage = $1, score = $2 WHERE id = $3',
-      [state.stage, state.score, sessionId]
-    );
+    await Session.updateOne({ _id: sessionId }, { $set: { stage: state.stage, score: state.score } });
   } catch (_) {}
 
   io.to(room).emit('stage_complete', {
