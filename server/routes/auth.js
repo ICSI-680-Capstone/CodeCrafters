@@ -2,7 +2,7 @@ import express from 'express';
 const router = express.Router();
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getPool } from '../db/postgres.js';
+import { User } from '../db/mongodb.js';
 import { JWT_SECRET } from '../middleware/auth.js';
 
 // POST /api/auth/register
@@ -11,19 +11,15 @@ router.post('/register', async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
-  const pool = getPool();
   try {
-    const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-    if (existing.rows.length > 0) return res.status(400).json({ error: 'Username already taken' });
+    const existing = await User.findOne({ username });
+    if (existing) return res.status(400).json({ error: 'Username already taken' });
 
     const hash = await bcrypt.hash(password, 10);
-    const { rows } = await pool.query(
-      'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username',
-      [username, hash]
-    );
+    const user = await User.create({ username, password: hash });
 
-    const token = jwt.sign({ id: rows[0].id, username: rows[0].username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username: rows[0].username });
+    const token = jwt.sign({ id: user._id.toString(), username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, username: user.username });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Registration failed' });
@@ -35,16 +31,15 @@ router.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
-  const pool = getPool();
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (rows.length === 0) return res.status(401).json({ error: 'Invalid username or password' });
+    const user = await User.findOne({ username });
+    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
 
-    const valid = await bcrypt.compare(password, rows[0].password);
+    const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid username or password' });
 
-    const token = jwt.sign({ id: rows[0].id, username: rows[0].username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username: rows[0].username });
+    const token = jwt.sign({ id: user._id.toString(), username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, username: user.username });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });

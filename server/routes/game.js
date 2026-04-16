@@ -1,7 +1,7 @@
 import express from 'express';
 const router = express.Router();
 import { v4 as uuidv4 } from 'uuid';
-import { getPool } from '../db/postgres.js';
+import { Session, Player } from '../db/mongodb.js';
 import { setSessionState, getSessionState } from '../db/session.js';
 import { authMiddleware } from '../middleware/auth.js';
 
@@ -21,7 +21,6 @@ function normalizeLevel(raw) {
 
 router.post('/create', authMiddleware, async (req, res) => {
   const { username, id: userId } = req.user;
-  const pool = getPool();
   const sessionId = uuidv4().slice(0, 8).toUpperCase();
   const startStage = normalizeStartStage(req.body?.startStage);
   const level = normalizeLevel(req.body?.level);
@@ -39,14 +38,8 @@ router.post('/create', authMiddleware, async (req, res) => {
       chat: [],
     };
 
-    await pool.query(
-      'INSERT INTO sessions (id, stage, state) VALUES ($1, $2, $3)',
-      [sessionId, startStage, JSON.stringify(initialState)]
-    );
-    await pool.query(
-      'INSERT INTO players (session_id, user_id, name, role) VALUES ($1, $2, $3, $4)',
-      [sessionId, userId, username, 'Architect']
-    );
+    await Session.create({ _id: sessionId, stage: startStage, state: initialState });
+    await Player.create({ sessionId, userId, name: username, role: 'Architect' });
 
     res.json({ sessionId, role: 'Architect', stage: startStage, level });
   } catch (err) {
@@ -60,12 +53,10 @@ router.post('/join', authMiddleware, async (req, res) => {
   const { username, id: userId } = req.user;
   if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
 
-  const pool = getPool();
-
   try {
-    const { rows } = await pool.query('SELECT * FROM sessions WHERE id = $1', [sessionId]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Session not found' });
-    if (rows[0].completed) return res.status(400).json({ error: 'Session already completed' });
+    const session = await Session.findById(sessionId).lean();
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.completed) return res.status(400).json({ error: 'Session already completed' });
 
     const state = await getSessionState(sessionId);
     if (!state) return res.status(404).json({ error: 'Session state not found' });
@@ -87,10 +78,7 @@ router.post('/join', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Session is full' });
     }
 
-    await pool.query(
-      'INSERT INTO players (session_id, user_id, name, role) VALUES ($1, $2, $3, $4)',
-      [sessionId, userId, username, 'Builder']
-    );
+    await Player.create({ sessionId, userId, name: username, role: 'Builder' });
 
     state.players.Builder = { name: username, userId, ready: false };
     await setSessionState(sessionId, state);
@@ -105,7 +93,6 @@ router.post('/join', authMiddleware, async (req, res) => {
 // POST /api/game/create-ai — create a solo session with an AI Builder
 router.post('/create-ai', authMiddleware, async (req, res) => {
   const { username, id: userId } = req.user;
-  const pool = getPool();
   const sessionId = uuidv4().slice(0, 8).toUpperCase();
   const startStage = normalizeStartStage(req.body?.startStage);
   const level = normalizeLevel(req.body?.level);
@@ -124,15 +111,9 @@ router.post('/create-ai', authMiddleware, async (req, res) => {
       chat: [],
     };
 
-    await pool.query(
-      'INSERT INTO sessions (id, stage, state) VALUES ($1, $2, $3)',
-      [sessionId, startStage, JSON.stringify(initialState)]
-    );
-    // Only insert the human player — AI has no users row
-    await pool.query(
-      'INSERT INTO players (session_id, user_id, name, role) VALUES ($1, $2, $3, $4)',
-      [sessionId, userId, username, 'Architect']
-    );
+    await Session.create({ _id: sessionId, stage: startStage, state: initialState });
+    // Only insert the human player — AI has no users document
+    await Player.create({ sessionId, userId, name: username, role: 'Architect' });
 
     res.json({ sessionId, role: 'Architect', stage: startStage, level });
   } catch (err) {
@@ -144,20 +125,19 @@ router.post('/create-ai', authMiddleware, async (req, res) => {
 // GET active session for logged in user
 router.get('/active', authMiddleware, async (req, res) => {
   const { id: userId } = req.user;
-  const pool = getPool();
 
   try {
-    const { rows } = await pool.query(`
-      SELECT s.id, s.stage, s.score, p.role
-      FROM sessions s
-      JOIN players p ON p.session_id = s.id
-      WHERE p.user_id = $1 AND s.completed = FALSE
-      ORDER BY s.created_at DESC
-      LIMIT 1
-    `, [userId]);
+    const players = await Player.find({ userId }).lean();
+    const sessionIds = players.map(p => p.sessionId);
 
-    if (rows.length === 0) return res.json({ session: null });
-    res.json({ session: rows[0] });
+    const session = await Session.findOne(
+      { _id: { $in: sessionIds }, completed: false },
+    ).sort({ createdAt: -1 }).lean();
+
+    if (!session) return res.json({ session: null });
+
+    const player = players.find(p => p.sessionId === session._id);
+    res.json({ session: { id: session._id, stage: session.stage, score: session.score, role: player.role } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch active session' });

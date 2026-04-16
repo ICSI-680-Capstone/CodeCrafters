@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import cors from 'cors';
 
-import { connectPostgres } from './db/postgres.js';
+import { connectMongo } from './db/mongodb.js';
 import authRoutes from './routes/auth.js';
 import gameRoutes from './routes/game.js';
 import codeRoutes from './routes/code.js';
@@ -42,7 +42,7 @@ const PORT = process.env.PORT || 5000;
 
 async function start() {
   try {
-    await connectPostgres();
+    await connectMongo();
     server.listen(PORT, () => {
       console.log(`✅  CodeCrafters server running on http://localhost:${PORT}`);
     });
