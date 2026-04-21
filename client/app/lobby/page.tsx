@@ -10,7 +10,7 @@ import { SERVER_URL } from "../CONSTANT";
 export default function LobbyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { updateState } = useGame();
+  const { updateState, resetState } = useGame();
 
   const [username, setUsername] = useState("");
   const [status, setStatus] = useState("Status: Ready");
@@ -53,7 +53,7 @@ export default function LobbyPage() {
     setStatus("Status: Invite link detected. Joining...");
   }, [inviteSessionId]);
 
-  const handleLogout = () => { AUTH.clearAuth(); router.push("/login"); };
+  const handleLogout = () => { AUTH.clearAuth(); resetState(); router.push("/login"); };
 
   const handleCreate = async () => {
     setCreateLoading(true);

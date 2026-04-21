@@ -17,6 +17,37 @@ export const AUTH = {
     localStorage.removeItem("cc_token");
     localStorage.removeItem("cc_username");
   },
+  saveCredentials: (username: string, password: string): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("cc_saved_username", username);
+    localStorage.setItem("cc_saved_password", password);
+  },
+  clearSavedCredentials: (): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("cc_saved_username");
+    localStorage.removeItem("cc_saved_password");
+    localStorage.removeItem("cc_remember_me");
+  },
+  getSavedUsername: (): string => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("cc_saved_username") || "";
+  },
+  getSavedPassword: (): string => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("cc_saved_password") || "";
+  },
+  setRememberMe: (value: boolean): void => {
+    if (typeof window === "undefined") return;
+    if (value) {
+      localStorage.setItem("cc_remember_me", "true");
+    } else {
+      localStorage.removeItem("cc_remember_me");
+    }
+  },
+  isRemembered: (): boolean => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("cc_remember_me") === "true";
+  },
   isLoggedIn: (): boolean => {
     if (typeof window === "undefined") return false;
     return !!localStorage.getItem("cc_token");

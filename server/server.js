@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import express, { json, static as expressStatic } from 'express';
+import express, { json } from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
@@ -25,16 +25,11 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(json());
-app.use(expressStatic(join(__dirname, '../client/public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/code', codeRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
-app.get('*', (req, res) => {
-  res.sendFile(join(__dirname, '../client/public/index.html'));
-});
 
 registerSocketHandlers(io);
 

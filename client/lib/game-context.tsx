@@ -7,6 +7,7 @@ interface GameContextType {
   state: GameState;
   setState: React.Dispatch<React.SetStateAction<GameState>>;
   updateState: (patch: Partial<GameState>) => void;
+  resetState: () => void;
 }
 
 const defaultState: GameState = {
@@ -24,6 +25,7 @@ export const GameContext = createContext<GameContextType>({
   state: defaultState,
   setState: () => {},
   updateState: () => {},
+  resetState: () => {},
 });
 
 export function GameProvider({ children }: { children: ReactNode }) {
@@ -33,7 +35,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const value = useMemo(() => ({ state, setState, updateState }), [state, updateState]);
+  const resetState = useCallback(() => setState(defaultState), []);
+
+  const value = useMemo(() => ({ state, setState, updateState, resetState }), [state, updateState, resetState]);
 
   return (
     <GameContext.Provider value={value}>

@@ -3,22 +3,27 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AUTH } from "@/lib/auth";
+import { useGame } from "@/lib/game-context";
 import { SERVER_URL } from "@/app/CONSTANT";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { resetState } = useGame();
   const [tab, setTab] = useState<"login" | "register">("login");
 
   const inviteSessionId = (searchParams.get("sessionId") || AUTH.getPendingInviteSessionId() || "").trim().toUpperCase();
 
-  const [loginUsername, setLoginUsername] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
+  const [loginUsername, setLoginUsername] = useState(() => AUTH.isRemembered() ? AUTH.getSavedUsername() : "");
+  const [loginPassword, setLoginPassword] = useState(() => AUTH.isRemembered() ? AUTH.getSavedPassword() : "");
+  const [rememberMe, setRememberMe] = useState(() => AUTH.isRemembered());
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [regUsername, setRegUsername] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
 
@@ -44,6 +49,13 @@ export default function LoginPage() {
         return;
       }
       AUTH.setAuth(data.token, data.username);
+      if (rememberMe) {
+        AUTH.saveCredentials(loginUsername, loginPassword);
+        AUTH.setRememberMe(true);
+      } else {
+        AUTH.clearSavedCredentials();
+      }
+      resetState();
       if (inviteSessionId) {
         AUTH.setPendingInviteSessionId(inviteSessionId);
         router.push(`/lobby?sessionId=${encodeURIComponent(inviteSessionId)}`);
@@ -76,6 +88,7 @@ export default function LoginPage() {
         return;
       }
       AUTH.setAuth(data.token, data.username);
+      resetState();
       if (inviteSessionId) {
         AUTH.setPendingInviteSessionId(inviteSessionId);
         router.push(`/lobby?sessionId=${encodeURIComponent(inviteSessionId)}`);
@@ -205,15 +218,35 @@ export default function LoginPage() {
                   className={inputCls}
                 />
               </div>
-              <div className="mb-4">
+              <div className="mb-4 relative">
                 <input
-                  type="password"
+                  type={showLoginPassword ? "text" : "password"}
                   placeholder="🔒  Password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   className={inputCls}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/90 text-[13px] font-bold transition-colors"
+                  tabIndex={-1}
+                >
+                  {showLoginPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+              <div className="mb-4 flex items-center gap-2">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded accent-[#7c3aed] cursor-pointer"
+                />
+                <label htmlFor="rememberMe" className="text-[13px] text-white/65 font-bold cursor-pointer select-none">
+                  Remember me
+                </label>
               </div>
               <button
                 disabled={loginLoading}
@@ -251,15 +284,23 @@ export default function LoginPage() {
                   className={inputCls}
                 />
               </div>
-              <div className="mb-4">
+              <div className="mb-4 relative">
                 <input
-                  type="password"
+                  type={showRegPassword ? "text" : "password"}
                   placeholder="🔒  Password (min 6 chars)"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleRegister()}
                   className={inputCls}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/90 text-[13px] font-bold transition-colors"
+                  tabIndex={-1}
+                >
+                  {showRegPassword ? "Hide" : "Show"}
+                </button>
               </div>
               <button
                 disabled={regLoading}

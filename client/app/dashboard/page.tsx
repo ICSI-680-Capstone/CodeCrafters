@@ -40,7 +40,7 @@ const STAT_META = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { updateState } = useGame();
+  const { updateState, resetState } = useGame();
 
   const [username, setUsername] = useState("");
   const [stats, setStats] = useState<DashboardStats>({
@@ -85,6 +85,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     AUTH.clearAuth();
+    resetState();
     router.push("/login");
   };
 
