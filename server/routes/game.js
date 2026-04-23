@@ -38,7 +38,7 @@ router.post('/create', authMiddleware, async (req, res) => {
       chat: [],
     };
 
-    await Session.create({ _id: sessionId, stage: startStage, state: initialState });
+    await Session.create({ _id: sessionId, stage: startStage, level, state: initialState });
     await Player.create({ sessionId, userId, name: username, role: 'Architect' });
 
     res.json({ sessionId, role: 'Architect', stage: startStage, level });
@@ -111,7 +111,7 @@ router.post('/create-ai', authMiddleware, async (req, res) => {
       chat: [],
     };
 
-    await Session.create({ _id: sessionId, stage: startStage, state: initialState });
+    await Session.create({ _id: sessionId, stage: startStage, level, state: initialState });
     // Only insert the human player — AI has no users document
     await Player.create({ sessionId, userId, name: username, role: 'Architect' });
 

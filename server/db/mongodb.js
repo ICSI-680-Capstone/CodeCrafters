@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
 const sessionSchema = new mongoose.Schema({
   _id: { type: String },
   stage: { type: Number, default: 1 },
+  level: { type: Number, default: 1 },
   score: { type: Number, default: 0 },
   completed: { type: Boolean, default: false },
   state: { type: mongoose.Schema.Types.Mixed },
@@ -20,7 +21,6 @@ const playerSchema = new mongoose.Schema({
   userId: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, enum: ['Architect', 'Builder'], required: true },
-  stageDone: { type: Boolean, default: false },
   joinedAt: { type: Date, default: Date.now },
 });
 
