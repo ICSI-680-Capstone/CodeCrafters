@@ -21,6 +21,7 @@ export default function GamePage() {
   const { state, updateState } = useGame();
 
   const [code, setCode] = useState("");
+  const [currentTask, setCurrentTask] = useState<import("@/types").Task | null>(null);
   const [consoleText, setConsoleText] = useState("Output will appear here...");
   const [consoleError, setConsoleError] = useState(false);
   const [running, setRunning] = useState(false);
@@ -43,7 +44,9 @@ export default function GamePage() {
     (stageNumber: number) => {
       const stage = STAGES[stageNumber - 1];
       if (!stage || !state.role) return;
-      const task = stage.levels[state.level][state.role];
+      const tasks = stage.levels[state.level][state.role];
+      const task = tasks[Math.floor(Math.random() * tasks.length)];
+      setCurrentTask(task);
       setCode(task.starterCode);
       setConsoleText("Output will appear here...");
       setConsoleError(false);
@@ -136,13 +139,12 @@ export default function GamePage() {
   }, [state.sessionId]); // eslint-disable-line
 
   const handleRun = async () => {
-    if (!code.trim()) return;
+    if (!code.trim() || !currentTask) return;
     setRunning(true);
     setConsoleText("...");
     setConsoleError(false);
     try {
-      const stage = STAGES[state.currentStage - 1];
-      const task = stage.levels[state.level][state.role!];
+      const task = currentTask;
       const res = await fetch(`${SERVER_URL}/api/code/run`, {
         method: "POST",
         headers: AUTH.authHeaders(),
@@ -179,7 +181,6 @@ export default function GamePage() {
   };
 
   const stage = STAGES[state.currentStage - 1];
-  const task = stage && state.role ? stage.levels[state.level][state.role] : null;
   const progress = ((state.currentStage - 1) / 5) * 100;
 
   return (
@@ -216,12 +217,12 @@ export default function GamePage() {
 
         {/* Code Panel */}
         <section className="flex flex-col overflow-hidden border-r-2 border-[#1a1a1a] p-4 gap-3 bg-[#fafafa]">
-          {task && (
+          {currentTask && (
             <div className="bg-[#fff9e6] border-2 border-[#1a1a1a] rounded-[10px] p-[0.9rem_1rem] text-[0.85rem] flex-shrink-0 shadow-[var(--shadow-sm)]">
-              <h3 className="text-[#7c3aed] mb-[0.35rem] text-[0.95rem] font-[900]">{task.title}</h3>
-              <p className="text-[var(--text-muted)] mb-[0.4rem] font-bold">{task.description}</p>
+              <h3 className="text-[#7c3aed] mb-[0.35rem] text-[0.95rem] font-[900]">{currentTask.title}</h3>
+              <p className="text-[var(--text-muted)] mb-[0.4rem] font-bold">{currentTask.description}</p>
               <ul className="pl-5 text-[var(--text)] font-bold">
-                {task.steps.map((s, i) => (
+                {currentTask.steps.map((s, i) => (
                   <li key={i} className="mb-[0.2rem]">{s}</li>
                 ))}
               </ul>

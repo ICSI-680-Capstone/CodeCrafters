@@ -27,8 +27,8 @@ export interface Stage {
   building: string;
   levels: {
     [L in Level]: {
-      Architect: Task;
-      Builder: Task;
+      Architect: Task[];
+      Builder: Task[];
     };
   };
 }

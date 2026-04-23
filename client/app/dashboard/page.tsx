@@ -200,7 +200,7 @@ export default function DashboardPage() {
         >
           Start Building
         </button>
-        <StartGameModal isModalOpen={modalOpen} handleModal={setModalOpen} />
+        <StartGameModal isModalOpen={modalOpen} handleModal={setModalOpen} preselectedBuilding={selectedBuilding} />
       </main>
     </div>
   );

@@ -42,24 +42,26 @@ const BUILDINGS = [
 export default function StartGameModal({
   isModalOpen,
   handleModal,
+  preselectedBuilding,
 }: {
   isModalOpen: boolean;
   handleModal: Dispatch<SetStateAction<boolean>>;
+  preselectedBuilding: string;
 }) {
   const router = useRouter();
   const { updateState } = useGame();
 
   const [playMode, setPlayMode] = useState<"friend" | "ai" | "">("");
   const [selectedLevel, setSelectedLevel] = useState(0);
-  const [selectedBuilding, setSelectedBuilding] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const canStart = playMode !== "" && selectedBuilding !== "" && selectedLevel !== 0;
+  const canStart = playMode !== "" && selectedLevel !== 0;
+
+  const selectedBuildingData = BUILDINGS.find((b) => b.id === preselectedBuilding);
 
   const handleClose = () => {
     setPlayMode("");
     setSelectedLevel(0);
-    setSelectedBuilding("");
     handleModal(false);
   };
 
@@ -69,7 +71,7 @@ export default function StartGameModal({
     try {
       const startStage = Math.max(
         1,
-        BUILDINGS.findIndex((b) => b.id === selectedBuilding) + 1,
+        BUILDINGS.findIndex((b) => b.id === preselectedBuilding) + 1,
       );
 
       const endpoint =
@@ -118,11 +120,18 @@ export default function StartGameModal({
       className={`${isModalOpen ? "" : "hidden"} fixed inset-0 flex justify-center items-center z-50 bg-black/70`}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="w-10/12 max-w-4xl max-h-[90vh] overflow-y-auto p-8 rounded-2xl bg-[#0d0b1e] text-white space-y-8">
+      <div className="w-10/12 max-w-3xl max-h-[90vh] overflow-y-auto p-8 rounded-2xl bg-[#0d0b1e] text-white space-y-8">
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-black">Start Building</h2>
+          <div>
+            <h2 className="text-xl font-black">Start Building</h2>
+            {selectedBuildingData && (
+              <p className="text-white/50 text-sm mt-1 font-bold">
+                {selectedBuildingData.emoji} {selectedBuildingData.name}
+              </p>
+            )}
+          </div>
           <button
             onClick={handleClose}
             className="text-white/40 hover:text-white text-2xl leading-none transition-colors"
@@ -166,30 +175,6 @@ export default function StartGameModal({
                 No partner needed. An AI buddy plays alongside you anytime.
               </p>
             </button>
-          </div>
-        </div>
-
-        {/* ── Building ── */}
-        <div>
-          <h3 className="text-[11px] font-black tracking-widest text-white/60 mb-3">
-            CHOOSE A BUILDING
-          </h3>
-          <div className="grid grid-cols-5 gap-3">
-            {BUILDINGS.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => setSelectedBuilding(b.id)}
-                className="bg-[#13102a] rounded-xl p-4 flex flex-col items-center gap-2 transition-all hover:bg-[#1c1840]"
-                style={{
-                  outline: selectedBuilding === b.id
-                    ? "2px solid #f59e0b"
-                    : "2px solid transparent",
-                }}
-              >
-                <span className="text-3xl">{b.emoji}</span>
-                <span className="text-sm font-bold">{b.name}</span>
-              </button>
-            ))}
           </div>
         </div>
 
