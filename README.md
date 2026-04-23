@@ -17,7 +17,7 @@ This project uses a modern web stack for a real-time, interactive experience.
     *   **Node.js (v20+):** A JavaScript runtime for building fast and scalable server-side applications.
     *   **Express.js:** A minimal and flexible Node.js web application framework that provides a robust set of features for web and mobile applications.
     *   **Socket.IO:** Enables real-time, bidirectional and event-based communication between the client and the server. It's crucial for the collaborative features of the game.
-    *   **PostgreSQL:** A powerful, open-source object-relational database system used for persisting game state and user data.
+    *   **MongoDB:** A document-oriented NoSQL database used for persisting game state and user data.
 
 *   **Frontend:**
     *   **Next.js (v14+):** A React framework for building server-side rendered and static web applications. We use the App Router for routing and layouts.
@@ -49,8 +49,7 @@ The repository is organized into two main parts: `client` and `server`.
 │   └── public/             # Static assets like images
 ├── server/                 # Node.js backend server
 │   ├── db/                 # Database connection and query helpers
-│   │   ├── postgres.js     # PostgreSQL connection setup
-│   │   └── session.js      # In-memory session management
+│   │   └── mongodb.js      # MongoDB connection and Mongoose models
 │   ├── middleware/         # Express middleware (e.g., for authentication)
 │   ├── routes/             # API route definitions
 │   │   ├── auth.js         # Authentication routes
@@ -83,7 +82,7 @@ To ensure the codebase is maintainable and scalable, we follow these patterns:
 *   **General:**
     *   **TypeScript:** We use TypeScript in the frontend (`client`) to enforce type safety, which helps catch errors early and improves developer experience.
     *   **ESLint:** A linter is configured (`client/eslint.config.mjs`) to enforce a consistent code style and identify potential issues.
-    *   **Environment Variables:** Configuration is managed through environment variables (e.g., `DATABASE_URL`), following the twelve-factor app methodology.
+    *   **Environment Variables:** Configuration is managed through environment variables (e.g., `MONGO_DB_URI`), following the twelve-factor app methodology.
 
 
 ## Prerequisites
@@ -94,15 +93,12 @@ To ensure the codebase is maintainable and scalable, we follow these patterns:
 
 ## Quick Start (Docker)
 
-This is the easiest way to run the app with PostgreSQL.
-
 ```bash
 docker compose up --build
 ```
 
-App URL:
-
-- http://localhost:3000
+- Client: http://localhost:3000
+- Server: http://localhost:5000
 
 Stop services:
 
@@ -118,26 +114,23 @@ docker compose down -v
 
 ## Local Development (Without Docker)
 
-1. Install dependencies:
+1. Copy and fill in environment variables:
 
 ```bash
-npm install
+cp server/.env.example server/.env
+# Edit server/.env and set MONGO_DB_URI to your MongoDB connection string
 ```
 
-2. Start PostgreSQL locally and create a database named codecrafters.
-
-3. Set environment variables in a .env file at the repository root:
-
-```env
-PORT=3000
-NODE_ENV=development
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/codecrafters
-```
-
-4. Run the development server:
+2. Install dependencies and start the server:
 
 ```bash
-npm run dev
+cd server && npm install && npm run dev
+```
+
+3. In a separate terminal, start the client:
+
+```bash
+cd client && npm install && npm run dev
 ```
 
 ## API Overview
