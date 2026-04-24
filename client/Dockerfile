@@ -12,6 +12,9 @@ COPY . .
 ARG NEXT_PUBLIC_SERVER_URL
 ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
 
+# Enable standalone output for Docker self-hosting
+ENV NEXT_OUTPUT=standalone
+
 RUN npm run build
 
 # ── Stage 2: run ──────────────────────────────────────────────────────────────
