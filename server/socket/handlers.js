@@ -136,7 +136,9 @@ async function advanceStage(io, room, sessionId, state) {
 
     try {
       await Session.updateOne({ _id: sessionId }, { $set: { completed: true } });
-    } catch (_) {}
+    } catch (err) {
+      console.error('[advanceStage] Failed to mark session completed in DB:', err.message);
+    }
 
     io.to(room).emit('game_complete', { state });
     return;
@@ -151,7 +153,9 @@ async function advanceStage(io, room, sessionId, state) {
 
   try {
     await Session.updateOne({ _id: sessionId }, { $set: { stage: state.stage, score: state.score } });
-  } catch (_) {}
+  } catch (err) {
+    console.error('[advanceStage] Failed to persist stage/score to DB:', err.message);
+  }
 
   io.to(room).emit('stage_complete', {
     completedStage: state.stage - 1,

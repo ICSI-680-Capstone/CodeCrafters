@@ -2,17 +2,7 @@ import express from 'express';
 const router = express.Router();
 import { Session, Player } from '../db/mongodb.js';
 import { authMiddleware } from '../middleware/auth.js';
-
-// Must stay in lockstep with STAGES in client/lib/stages.ts
-const BUILDINGS = [
-  { key: 'library',     stageNumber: 1 },
-  { key: 'classroom',   stageNumber: 2 },
-  { key: 'cafeteria',   stageNumber: 3 },
-  { key: 'science-lab', stageNumber: 4 },
-  { key: 'playground',  stageNumber: 5 },
-];
-
-const LEVEL_NAMES = { 1: 'Foundation', 2: 'Walls', 3: 'Roof' };
+import { BUILDINGS, LEVEL_NAMES } from '../constants.js';
 
 // For a session row, return the number of stages fully completed.
 function stagesDone(row) {

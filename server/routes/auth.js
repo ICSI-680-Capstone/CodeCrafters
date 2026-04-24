@@ -3,7 +3,7 @@ const router = express.Router();
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../db/mongodb.js';
-import { JWT_SECRET } from '../middleware/auth.js';
+import { JWT_SECRET, authMiddleware } from '../middleware/auth.js';
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -46,17 +46,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/auth/me — verify token and return user
-router.get('/me', async (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token' });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    res.json({ id: decoded.id, username: decoded.username });
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
-  }
+// GET /api/auth/me — verify token and return user info
+router.get('/me', authMiddleware, (req, res) => {
+  res.json({ id: req.user.id, username: req.user.username });
 });
 
 export default router;

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
 import { STAGES } from "@/lib/stages";
-import { ChatMessage } from "@/types";
+import { ChatMessage, Task } from "@/types";
 import dynamic from "next/dynamic";
 import WaitingModal from "@/components/game/WaitingModal";
 import StageCompleteModal from "@/components/game/StageCompleteModal";
@@ -16,12 +16,22 @@ const CampusCanvas = dynamic(() => import("@/components/campus/CampusCanvas"), {
 let idCounter = 0;
 const uid = () => String(++idCounter);
 
+/** Pick a random static task for the given stage/level/role as fallback. */
+function staticTask(stageNumber: number, level: 1 | 2 | 3, role: "Architect" | "Builder"): Task | null {
+  const stage = STAGES[stageNumber - 1];
+  if (!stage) return null;
+  const tasks = stage.levels[level]?.[role];
+  if (!tasks?.length) return null;
+  return tasks[Math.floor(Math.random() * tasks.length)];
+}
+
 export default function GamePage() {
   const router = useRouter();
   const { state, updateState } = useGame();
 
   const [code, setCode] = useState("");
-  const [currentTask, setCurrentTask] = useState<import("@/types").Task | null>(null);
+  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [taskLoading, setTaskLoading] = useState(false);
   const [consoleText, setConsoleText] = useState("Output will appear here...");
   const [consoleError, setConsoleError] = useState(false);
   const [running, setRunning] = useState(false);
@@ -40,16 +50,50 @@ export default function GamePage() {
   const socketRef = useRef<any>(state.socket);
   socketRef.current = state.socket;
 
+  /**
+   * Load a task for the given stage number.
+   * 1. Tries POST /api/task/generate (Gemini).
+   * 2. Falls back to the static STAGES bank on any failure.
+   */
   const loadStage = useCallback(
-    (stageNumber: number) => {
-      const stage = STAGES[stageNumber - 1];
-      if (!stage || !state.role) return;
-      const tasks = stage.levels[state.level][state.role];
-      const task = tasks[Math.floor(Math.random() * tasks.length)];
-      setCurrentTask(task);
-      setCode(task.starterCode);
+    async (stageNumber: number) => {
+      if (!state.role) return;
+
+      setTaskLoading(true);
+      setCurrentTask(null);
+      setCode("");
       setConsoleText("Output will appear here...");
       setConsoleError(false);
+
+      let task: Task | null = null;
+
+      try {
+        const res = await fetch(`${SERVER_URL}/api/task/generate`, {
+          method: "POST",
+          headers: AUTH.authHeaders(),
+          body: JSON.stringify({ stage: stageNumber, level: state.level, role: state.role }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && !data.fallback) {
+          task = data as Task;
+        }
+      } catch {
+        // network error — fall through to static
+      }
+
+      // Static fallback
+      if (!task) {
+        task = staticTask(stageNumber, state.level, state.role);
+      }
+
+      if (task) {
+        setCurrentTask(task);
+        setCode(task.starterCode);
+      }
+
+      setTaskLoading(false);
     },
     [state.role, state.level],
   );
@@ -180,7 +224,6 @@ export default function GamePage() {
     loadStage(next);
   };
 
-  const stage = STAGES[state.currentStage - 1];
   const progress = ((state.currentStage - 1) / 5) * 100;
 
   return (
@@ -217,9 +260,24 @@ export default function GamePage() {
 
         {/* Code Panel */}
         <section className="flex flex-col overflow-hidden border-r-2 border-[#1a1a1a] p-4 gap-3 bg-[#fafafa]">
-          {currentTask && (
+
+          {/* Task card — loading skeleton or real content */}
+          {taskLoading ? (
+            <div className="bg-[#fff9e6] border-2 border-[#1a1a1a] rounded-[10px] p-[0.9rem_1rem] flex-shrink-0 shadow-[var(--shadow-sm)] animate-pulse space-y-2">
+              <div className="h-4 bg-[#e9d8a0] rounded w-2/3" />
+              <div className="h-3 bg-[#e9d8a0] rounded w-full" />
+              <div className="h-3 bg-[#e9d8a0] rounded w-5/6" />
+              <div className="h-3 bg-[#e9d8a0] rounded w-4/6" />
+              <p className="text-[0.75rem] text-[#a0856a] font-bold pt-1">✨ Generating your question...</p>
+            </div>
+          ) : currentTask ? (
             <div className="bg-[#fff9e6] border-2 border-[#1a1a1a] rounded-[10px] p-[0.9rem_1rem] text-[0.85rem] flex-shrink-0 shadow-[var(--shadow-sm)]">
-              <h3 className="text-[#7c3aed] mb-[0.35rem] text-[0.95rem] font-[900]">{currentTask.title}</h3>
+              <div className="flex items-center justify-between mb-[0.35rem]">
+                <h3 className="text-[#7c3aed] text-[0.95rem] font-[900]">{currentTask.title}</h3>
+                <span className="text-[10px] font-bold text-[#a0856a] bg-[#fef3c7] border border-[#fbbf24] px-2 py-0.5 rounded-full">
+                  ✨ AI
+                </span>
+              </div>
               <p className="text-[var(--text-muted)] mb-[0.4rem] font-bold">{currentTask.description}</p>
               <ul className="pl-5 text-[var(--text)] font-bold">
                 {currentTask.steps.map((s, i) => (
@@ -227,7 +285,7 @@ export default function GamePage() {
                 ))}
               </ul>
             </div>
-          )}
+          ) : null}
 
           {/* Code editor */}
           <div className="flex-1 overflow-hidden">
@@ -236,6 +294,7 @@ export default function GamePage() {
               placeholder="# Write your Python here..."
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              disabled={taskLoading}
               onKeyDown={(e) => {
                 if (e.key === "Tab") {
                   e.preventDefault();
@@ -247,7 +306,7 @@ export default function GamePage() {
                   requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 4; });
                 }
               }}
-              className="w-full h-full bg-[#1e1b2e] text-[#a78bfa] border-2 border-[#1a1a1a] rounded-[10px] p-4 font-['Courier_New',monospace] text-[0.9rem] leading-[1.6] resize-none outline-none tab-[4]"
+              className="w-full h-full bg-[#1e1b2e] text-[#a78bfa] border-2 border-[#1a1a1a] rounded-[10px] p-4 font-['Courier_New',monospace] text-[0.9rem] leading-[1.6] resize-none outline-none disabled:opacity-40"
             />
           </div>
 
@@ -261,12 +320,12 @@ export default function GamePage() {
           </div>
 
           <button
-            disabled={running}
+            disabled={running || taskLoading || !currentTask}
             onClick={handleRun}
             className="flex-none w-full mt-3 py-3 bg-[#22c55e] text-[#1a1a1a] border-2 border-[#1a1a1a] rounded-[10px] font-[900] text-[0.95rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-[transform,box-shadow] duration-100"
             style={{ fontFamily: "var(--font)" }}
           >
-            {running ? "⏳ Running..." : "▶ RUN CODE / SUBMIT"}
+            {running ? "⏳ Running..." : taskLoading ? "⏳ Loading question..." : "▶ RUN CODE / SUBMIT"}
           </button>
         </section>
 
