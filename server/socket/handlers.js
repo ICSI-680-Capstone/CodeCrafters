@@ -40,7 +40,7 @@ function registerSocketHandlers(io) {
       console.log(`${playerName} (${role}) joined room ${room}`);
     });
 
-    socket.on('chat_message', async ({ sessionId, message }) => {
+    socket.on('chat_message', async ({ sessionId, message, task }) => {
       const socketSessionId = socket.data?.sessionId;
       const playerName = socket.data?.playerName;
       const role = socket.data?.role;
@@ -52,6 +52,8 @@ function registerSocketHandlers(io) {
 
       const state = await getSessionState(effectiveSessionId);
       if (state) {
+        // Cache the task in session state so it's available for future replies
+        if (task) state.currentTask = task;
         state.chat.push(entry);
         if (state.chat.length > 100) state.chat.shift();
         await setSessionState(effectiveSessionId, state);
@@ -62,9 +64,10 @@ function registerSocketHandlers(io) {
       // AI game: reply after a short delay
       if (state?.ai_game && role !== 'Builder') {
         const currentStage = state.stage;
+        const taskContext = task || state?.currentTask || null;
         const delay = 1000 + Math.random() * 1500;
         setTimeout(async () => {
-          const aiText = await generateAIChatResponse(message, currentStage);
+          const aiText = await generateAIChatResponse(message, currentStage, taskContext);
           const aiEntry = { playerName: 'AI Buddy', role: 'Builder', message: aiText, timestamp: Date.now() };
           const freshState = await getSessionState(effectiveSessionId);
           if (freshState) {

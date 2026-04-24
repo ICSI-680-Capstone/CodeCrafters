@@ -50,21 +50,28 @@ async function callGemini(systemText, userText, { json = false, temperature = 0.
 // ── AI Chat ───────────────────────────────────────────────────────────────────
 
 const CHAT_FALLBACKS = [
-  "Great idea! Let me try that approach too.",
-  "I'm working on my part — almost done!",
-  "Nice thinking! Python is so fun for this kind of problem.",
-  "Good progress! I think we've got this one.",
-  "Let me know if you get stuck — we can figure it out together!",
-  "Ooh, interesting approach. I'll try something similar.",
-  "Almost there! Keep going 💪",
+  "Think about what value you need to store first — try assigning it to a variable!",
+  "Check your task steps again — they'll point you in the right direction.",
+  "Try running your code and see what the output looks like so far.",
+  "Remember: print() shows output. What do you want to print?",
+  "You're close! Read the task description again carefully.",
+  "Think about what Python construct matches the step you're on.",
+  "Don't worry — just try something and run it. Errors help you learn!",
 ];
 
-export async function generateAIChatResponse(userMessage, stage) {
-  const systemText = `You are "AI Buddy", a friendly Python coding partner in a collaborative learning game called CodeCrafters.
-You're on stage ${stage}/5 with a student. Keep replies very short (1-2 sentences), upbeat, and focused on the coding challenge.
-Never write code blocks — just chat naturally like a teammate.`;
+export async function generateAIChatResponse(userMessage, stage, task = null) {
+  const taskContext = task
+    ? `\n\nThe student is working on this task:\nTitle: ${task.title}\nDescription: ${task.description}\nSteps: ${task.steps.join(' | ')}\n${task.expected_output ? `Expected output: "${task.expected_output}"` : ''}`
+    : '';
 
-  const text = await callGemini(systemText, userMessage, { temperature: 1.0, maxTokens: 80 });
+  const systemText = `You are "AI Buddy", a helpful Python coding assistant in CodeCrafters, a learning game for beginners (ages 14-18).
+You're helping a student on stage ${stage}/5.${taskContext}
+
+When the student asks for help, give clear hints and guidance tailored to their specific task.
+You may share short code snippets (1-3 lines) to illustrate a concept or syntax — but do NOT give away the complete solution.
+Be friendly, encouraging, and concise (2-4 sentences max).`;
+
+  const text = await callGemini(systemText, userMessage, { temperature: 0.9, maxTokens: 300 });
   if (text) return text.trim();
 
   // Anthropic fallback
@@ -74,7 +81,7 @@ Never write code blocks — just chat naturally like a teammate.`;
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 100,
+        max_tokens: 300,
         system: systemText,
         messages: [{ role: 'user', content: userMessage }],
       });
@@ -87,8 +94,6 @@ Never write code blocks — just chat naturally like a teammate.`;
 
 // ── Task generation ───────────────────────────────────────────────────────────
 
-import { LEVEL_NAMES } from './constants.js';
-
 // Detailed per-level spec sent verbatim to Gemini so it cannot drift out of scope.
 const LEVEL_SPEC = {
   1: {
@@ -100,15 +105,15 @@ const LEVEL_SPEC = {
 - print() with string concatenation or a single value
 - input() only when the task explicitly needs user input (set expected_output to null in that case)
 FORBIDDEN: if/else, loops, functions, lists, imports, f-strings`,
-    exampleSolution: `# Architect example (Library · Foundation):
-lib_name = "Grand Library"
-print(lib_name)
-# expected_output: "Grand Library"
+    exampleSolution: `# Architect example (Cafeteria · Foundation):
+special = "Pizza Friday"
+print(special)
+# expected_output: "Pizza Friday"
 
-# Builder example (Library · Foundation):
-book_count = 500
-print(book_count)
-# expected_output: "500"`,
+# Builder example (Gym · Foundation):
+score = 42
+print(score)
+# expected_output: "42"`,
   },
   2: {
     name: 'Walls',
@@ -121,19 +126,19 @@ print(book_count)
 - len() is allowed
 - Variables and data types from Foundation
 FORBIDDEN: while loops, functions (def), imports, try/except, nested functions`,
-    exampleSolution: `# Architect example (Library · Walls):
-books = 150
-if books > 100:
-    print("Well stocked!")
+    exampleSolution: `# Architect example (Cafeteria · Walls):
+meals = 80
+if meals > 50:
+    print("Busy day!")
 else:
-    print("Need more books")
-# expected_output: "Well stocked!"
+    print("Quiet day")
+# expected_output: "Busy day!"
 
-# Builder example (Library · Walls):
-genres = ["Fiction", "Science", "History"]
-for g in genres:
-    print(g)
-# expected_output: "Fiction\\nScience\\nHistory"`,
+# Builder example (Gym · Walls):
+teams = ["Tigers", "Hawks", "Wolves"]
+for t in teams:
+    print(t)
+# expected_output: "Tigers\\nHawks\\nWolves"`,
   },
   3: {
     name: 'Roof',
@@ -145,17 +150,19 @@ for g in genres:
 - if/else and lists inside the function body if needed
 - Variables and data types from Foundation
 FORBIDDEN: classes, imports, recursion, lambda, global variables modified inside function`,
-    exampleSolution: `# Architect example (Library · Roof):
-def greet_reader():
-    return "Welcome to the Library!"
-print(greet_reader())
-# expected_output: "Welcome to the Library!"
+    exampleSolution: `# Architect example (Cafeteria · Roof):
+def greet(name):
+    return "Hey " + name + ", lunch is ready!"
+print(greet("Alex"))
+# expected_output: "Hey Alex, lunch is ready!"
 
-# Builder example (Library · Roof):
-def book_info(title):
-    return "Book: " + title
-print(book_info("Python 101"))
-# expected_output: "Book: Python 101"`,
+# Builder example (Gym · Roof):
+def winner(score):
+    if score > 50:
+        return "Win"
+    return "Loss"
+print(winner(60))
+# expected_output: "Win"`,
   },
 };
 
@@ -173,35 +180,38 @@ export async function generateTask({ building, stage, level, role }) {
     ? `The Architect designs and names things (declaring values, naming structures, making boolean decisions).`
     : `The Builder constructs and counts things (processing data, iterating over collections, computing results).`;
 
-  const systemText = `You are a Python question generator for CodeCrafters, a collaborative coding game for school beginners (ages 10–16).
-You produce exactly one Python coding task per request.
+  const systemText = `You are a Python question generator for CodeCrafters, a coding game for high school students (ages 14–18).
+You produce exactly one Python coding task per request. Tasks must feel fun, quick, and totally achievable in under 3 minutes.
 
 CRITICAL RULES — violating any of these means the task is wrong:
 1. The task MUST use the ${spec.name} level constructs only.
 ${spec.allowed}
 2. The solution must be fully runnable with standard Python 3, zero imports.
-3. Theme: every variable name, value, and scenario must relate to the ${building} building on a school campus.
+3. Theme: every variable name, value, and scenario must relate to the ${building} on a school campus in a fun, realistic way (think: scores, team names, locker numbers, lunch orders, game results — things high schoolers actually care about).
 4. Vary the task each call — different variable names, numbers, and scenarios every time.
-5. expected_output must be the EXACT stdout string the correct solution prints, using real \\n for multiple lines.
+5. Variable names must be SHORT and simple (e.g. score, name, count, team — NOT compound_names_like_this).
+6. expected_output must be the EXACT stdout string the correct solution prints, using real \\n for multiple lines.
    Only set expected_output to null when the task genuinely requires input().
-6. starterCode: 1–3 lines giving a helpful comment or partial scaffold, ending with a newline. No solution code.
-7. steps: 2–4 short instructions guiding the student without revealing the answer.
-8. Return ONLY a JSON object — no markdown fences, no prose outside the JSON.
+7. starterCode: 1–2 lines max — a helpful comment or a partial first line. No solution code.
+8. steps: EXACTLY 2 or 3 short, friendly steps. No more. Guide without revealing the answer.
+9. Return ONLY a JSON object — no markdown fences, no prose outside the JSON.
 
 Example solutions for reference (do NOT copy these exactly — create a fresh variation):
 ${spec.exampleSolution}`;
 
-  const userText = `Generate a ${spec.name} level Python task for:
+  const userText = `Generate a fun, simple ${spec.name} level Python task for a high schooler:
 - Building: ${building} (stage ${stage}/5)
 - Role: ${role} — ${roleContext}
 - Allowed Python: ${spec.summary}
 
+Keep it short and fun. Use simple variable names. Make it feel relevant to real high school life at this building.
+
 Return JSON with exactly these keys:
 {
-  "title": "<Building> · ${spec.name} — <Short Task Name>",
-  "description": "<one sentence setting the scene>",
-  "steps": ["<instruction 1>", "<instruction 2>"],
-  "starterCode": "<starter code string>",
+  "title": "<Building> · ${spec.name} — <Short Fun Task Name>",
+  "description": "<one fun sentence that sets the scene>",
+  "steps": ["<step 1>", "<step 2>"],
+  "starterCode": "<1-2 line starter>",
   "expected_output": "<exact stdout or null>"
 }`;
 

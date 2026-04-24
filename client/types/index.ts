@@ -12,6 +12,7 @@ export interface GameState {
   level: Level;
   score: number;
   completedStages: number;
+  isAI?: boolean;
 }
 
 export interface Task {

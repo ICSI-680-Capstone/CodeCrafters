@@ -50,6 +50,9 @@ export default function GamePage() {
   const socketRef = useRef<any>(state.socket);
   socketRef.current = state.socket;
 
+  // Incremented on every loadStage call; lets async completions detect they're stale.
+  const loadGenRef = useRef(0);
+
   /**
    * Load a task for the given stage number.
    * 1. Tries POST /api/task/generate (Gemini).
@@ -58,6 +61,8 @@ export default function GamePage() {
   const loadStage = useCallback(
     async (stageNumber: number) => {
       if (!state.role) return;
+
+      const gen = ++loadGenRef.current;
 
       setTaskLoading(true);
       setCurrentTask(null);
@@ -82,6 +87,9 @@ export default function GamePage() {
       } catch {
         // network error — fall through to static
       }
+
+      // Discard if a newer loadStage call was made while this one was in-flight
+      if (gen !== loadGenRef.current) return;
 
       // Static fallback
       if (!task) {
@@ -214,7 +222,7 @@ export default function GamePage() {
   const sendChat = () => {
     const msg = chatInput.trim();
     if (!msg || !socketRef.current) return;
-    socketRef.current.emit("chat_message", { sessionId: state.sessionId, playerName: state.playerName, message: msg });
+    socketRef.current.emit("chat_message", { sessionId: state.sessionId, playerName: state.playerName, message: msg, task: currentTask });
     setChatInput("");
   };
 
@@ -337,39 +345,49 @@ export default function GamePage() {
           </div>
 
           {/* Chat */}
-          <div className="flex-shrink-0 h-[200px] border-t-2 border-[#1a1a1a] flex flex-col bg-white">
+          <div className={`flex-shrink-0 ${state.isAI ? "h-[300px]" : "h-[200px]"} border-t-2 border-[#1a1a1a] flex flex-col bg-white`}>
             <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-[0.6rem] text-[0.8rem] flex flex-col gap-[0.3rem]">
+              {messages.length === 0 && (
+                <p className="text-[0.75rem] text-[var(--text-muted)] italic font-bold mt-1">
+                  💡 Stuck? Ask AI Buddy — type a question and hit Send!
+                </p>
+              )}
               {messages.map((m) => (
-                <div key={m.id} className="flex gap-2">
+                <div key={m.id} className="flex gap-1 min-w-0">
                   {!m.isSystem && (
-                    <span className="text-[#7c3aed] font-[900]">
+                    <span className="text-[#7c3aed] font-[900] flex-shrink-0">
                       {m.sender}
                       {m.role ? ` (${m.role})` : ""}:
                     </span>
                   )}
-                  <span className={`font-bold ${m.isSystem ? "text-[var(--text-muted)] italic" : "text-[var(--text)]"}`}>
+                  <span className={`font-bold min-w-0 break-words ${m.isSystem ? "text-[var(--text-muted)] italic" : "text-[var(--text)]"}`}>
                     {m.message}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="flex gap-2 px-3 py-2 border-t-2 border-[#1a1a1a] flex-shrink-0 bg-[var(--surface2)]">
-              <input
-                type="text"
-                placeholder="Type message..."
-                maxLength={200}
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendChat()}
-                className="flex-1 bg-white/10 border border-white/20 rounded-[10px] px-4 py-[0.65rem] text-[var(--text)] font-bold text-[0.9rem] outline-none placeholder:text-[var(--text-muted)] focus:border-[#fbbf24] focus:shadow-[0_0_0_2px_rgba(251,191,36,0.2)] transition-all duration-150"
-              />
-              <button
-                onClick={sendChat}
-                className="flex-none py-[0.65rem] px-4 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-[10px] font-[900] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-100"
-                style={{ fontFamily: "var(--font)" }}
-              >
-                Send
-              </button>
+            <div className="flex flex-col border-t-2 border-[#1a1a1a] flex-shrink-0 bg-[var(--surface2)]">
+              <p className="text-[0.7rem] text-[var(--text-muted)] font-bold px-3 pt-[0.35rem]">
+                💬 Ask AI Buddy for hints about your task!
+              </p>
+              <div className="flex gap-2 px-3 pb-2 pt-1">
+                <input
+                  type="text"
+                  placeholder="e.g. how do I print a variable?"
+                  maxLength={200}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && sendChat()}
+                  className="flex-1 bg-white/10 border border-white/20 rounded-[10px] px-4 py-[0.65rem] text-[var(--text)] font-bold text-[0.9rem] outline-none placeholder:text-[var(--text-muted)] focus:border-[#fbbf24] focus:shadow-[0_0_0_2px_rgba(251,191,36,0.2)] transition-all duration-150"
+                />
+                <button
+                  onClick={sendChat}
+                  className="flex-none py-[0.65rem] px-4 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-[10px] font-[900] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-100"
+                  style={{ fontFamily: "var(--font)" }}
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         </section>

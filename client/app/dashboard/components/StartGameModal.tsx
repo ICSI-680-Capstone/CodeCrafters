@@ -94,6 +94,7 @@ export default function StartGameModal({
         currentStage: data.stage ?? startStage,
         level: (data.level ?? selectedLevel) as 1 | 2 | 3,
         completedStages: (data.stage ?? startStage) - 1,
+        isAI: playMode === "ai",
       });
       router.push(
         playMode === "ai"
