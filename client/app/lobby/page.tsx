@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
@@ -8,6 +8,14 @@ import { ActiveSession } from "@/types";
 import { SERVER_URL } from "../CONSTANT";
 
 export default function LobbyPage() {
+  return (
+    <Suspense>
+      <LobbyPageInner />
+    </Suspense>
+  );
+}
+
+function LobbyPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { updateState, resetState } = useGame();
