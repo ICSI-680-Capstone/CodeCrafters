@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
@@ -23,9 +23,18 @@ function LoginPageInner() {
 
   const inviteSessionId = (searchParams.get("sessionId") || AUTH.getPendingInviteSessionId() || "").trim().toUpperCase();
 
-  const [loginUsername, setLoginUsername] = useState(() => AUTH.isRemembered() ? AUTH.getSavedUsername() : "");
-  const [loginPassword, setLoginPassword] = useState(() => AUTH.isRemembered() ? AUTH.getSavedPassword() : "");
-  const [rememberMe, setRememberMe] = useState(() => AUTH.isRemembered());
+  // Initialise from localStorage only after mount to avoid SSR/client hydration mismatch.
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    if (AUTH.isRemembered()) {
+      setLoginUsername(AUTH.getSavedUsername());
+      setLoginPassword(AUTH.getSavedPassword());
+      setRememberMe(true);
+    }
+  }, []);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
