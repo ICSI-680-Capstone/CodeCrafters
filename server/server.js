@@ -18,13 +18,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '.env') });
 
+// In production set CLIENT_ORIGIN to your Vercel URL, e.g. https://your-app.vercel.app
+// In development '*' is used so the local Next.js dev server can connect freely.
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || '*';
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: CLIENT_ORIGIN, methods: ['GET', 'POST'] },
 });
 
-app.use(cors());
+app.use(cors({ origin: CLIENT_ORIGIN }));
 app.use(json());
 
 app.use('/api/auth', authRoutes);
