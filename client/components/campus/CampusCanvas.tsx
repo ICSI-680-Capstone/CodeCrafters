@@ -376,7 +376,7 @@ export default function CampusCanvas({
     }
 
     function animLoop() {
-      if (!canvas.isConnected) {
+      if (!canvas || !canvas.isConnected) {
         anim.rafId = null;
         return;
       }
