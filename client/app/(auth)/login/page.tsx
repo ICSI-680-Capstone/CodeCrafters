@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
 import { SERVER_URL } from "@/app/CONSTANT";
 
+// useSearchParams() requires a Suspense boundary during static generation.
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { resetState } = useGame();
