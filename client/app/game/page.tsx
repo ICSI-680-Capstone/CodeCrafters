@@ -10,6 +10,13 @@ import dynamic from "next/dynamic";
 import WaitingModal from "@/components/game/WaitingModal";
 import StageCompleteModal from "@/components/game/StageCompleteModal";
 import { SERVER_URL } from "../CONSTANT";
+import {
+  Layers, Hammer, Bot, Sparkles, Play, Loader2,
+  Send, AlertTriangle, X, LogOut,
+  BookOpen, GraduationCap, Utensils, FlaskConical, Activity,
+  CheckCircle2,
+  type LucideIcon,
+} from "lucide-react";
 
 const CampusCanvas = dynamic(() => import("@/components/campus/CampusCanvas"), { ssr: false });
 
@@ -25,11 +32,17 @@ function staticTask(stageNumber: number, level: 1 | 2 | 3, role: "Architect" | "
 }
 
 const ROLE_INFO = {
-  Architect: { color: "#fbbf24", bg: "#fbbf24", textColor: "#1a1a1a", icon: "🧱", desc: "You design the blueprint" },
-  Builder:   { color: "#a78bfa", bg: "#7c3aed", textColor: "#fff",    icon: "🔨", desc: "You write the code" },
+  Architect: { color: "#fbbf24", bg: "#fbbf24", textColor: "#1a1a1a", Icon: Layers, desc: "You design the blueprint" },
+  Builder:   { color: "#a78bfa", bg: "#7c3aed", textColor: "#fff",    Icon: Hammer, desc: "You write the code" },
 };
 
-const STAGE_BUILDINGS = ["Library 📚", "Classroom 🪑", "Cafeteria 🍽️", "Science Lab 🧪", "Playground 🏃"];
+const STAGE_BUILDINGS: { name: string; Icon: LucideIcon }[] = [
+  { name: "Library",     Icon: BookOpen },
+  { name: "Classroom",   Icon: GraduationCap },
+  { name: "Cafeteria",   Icon: Utensils },
+  { name: "Science Lab", Icon: FlaskConical },
+  { name: "Playground",  Icon: Activity },
+];
 
 export default function GamePage() {
   const router = useRouter();
@@ -48,47 +61,40 @@ export default function GamePage() {
   const chatRef = useRef<HTMLDivElement>(null);
 
   const [showWaiting, setShowWaiting] = useState(false);
-  const [stageComplete, setStageComplete] = useState<{
-    stage: number;
-    score: number;
-    nextStage: number;
-  } | null>(null);
+  const [stageComplete, setStageComplete] = useState<{ stage: number; score: number; nextStage: number } | null>(null);
+  const [partnerDisconnected, setPartnerDisconnected] = useState(false);
+  const [leaveLoading, setLeaveLoading] = useState(false);
 
   const socketRef = useRef<any>(state.socket);
   socketRef.current = state.socket;
-
   const loadGenRef = useRef(0);
 
-  const loadStage = useCallback(
-    async (stageNumber: number) => {
-      if (!state.role) return;
-      const gen = ++loadGenRef.current;
-      setTaskLoading(true);
-      setCurrentTask(null);
-      setCode("");
-      setConsoleText("Output will appear here...");
-      setConsoleError(false);
-      setConsolePassed(false);
+  const loadStage = useCallback(async (stageNumber: number) => {
+    if (!state.role) return;
+    const gen = ++loadGenRef.current;
+    setTaskLoading(true);
+    setCurrentTask(null);
+    setCode("");
+    setConsoleText("Output will appear here...");
+    setConsoleError(false);
+    setConsolePassed(false);
 
-      let task: Task | null = null;
-      try {
-        const res = await fetch(`${SERVER_URL}/api/task/generate`, {
-          method: "POST",
-          headers: AUTH.authHeaders(),
-          body: JSON.stringify({ stage: stageNumber, level: state.level, role: state.role }),
-        });
-        const data = await res.json();
-        if (res.ok && !data.fallback) task = data as Task;
-      } catch { /* fall through */ }
+    let task: Task | null = null;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/task/generate`, {
+        method: "POST",
+        headers: AUTH.authHeaders(),
+        body: JSON.stringify({ stage: stageNumber, level: state.level, role: state.role }),
+      });
+      const data = await res.json();
+      if (res.ok && !data.fallback) task = data as Task;
+    } catch { /* fall through */ }
 
-      if (gen !== loadGenRef.current) return;
-
-      if (!task) task = staticTask(stageNumber, state.level, state.role);
-      if (task) { setCurrentTask(task); setCode(task.starterCode); }
-      setTaskLoading(false);
-    },
-    [state.role, state.level],
-  );
+    if (gen !== loadGenRef.current) return;
+    if (!task) task = staticTask(stageNumber, state.level, state.role);
+    if (task) { setCurrentTask(task); setCode(task.starterCode); }
+    setTaskLoading(false);
+  }, [state.role, state.level]);
 
   useEffect(() => {
     if (!AUTH.isLoggedIn()) { router.replace("/login"); return; }
@@ -148,7 +154,8 @@ export default function GamePage() {
         router.push("/complete");
       });
       socket.on("player_disconnected", ({ playerName, role }: any) => {
-        setMessages((prev) => [...prev, { id: uid(), sender: "", message: `⚠️ ${playerName} (${role}) disconnected.`, isSystem: true }]);
+        setMessages((prev) => [...prev, { id: uid(), sender: "", message: `${playerName} (${role}) disconnected.`, isSystem: true }]);
+        if (!state.isAI) setPartnerDisconnected(true);
       });
     };
 
@@ -164,10 +171,7 @@ export default function GamePage() {
       socket.off("player_disconnected");
       if (createdSocket && socket === createdSocket) {
         socket.disconnect();
-        if (socketRef.current === socket) {
-          socketRef.current = null;
-          updateState({ socket: null });
-        }
+        if (socketRef.current === socket) { socketRef.current = null; updateState({ socket: null }); }
       }
     };
   }, [state.sessionId]); // eslint-disable-line
@@ -186,38 +190,27 @@ export default function GamePage() {
         body: JSON.stringify({ source_code: code, expected_output: task.expected_output }),
       });
       const data = await res.json();
-      if (data.stderr) {
-        setConsoleText(data.stderr);
-        setConsoleError(true);
-      } else {
-        setConsoleText(data.stdout || "(no output)");
-      }
+      if (data.stderr) { setConsoleText(data.stderr); setConsoleError(true); }
+      else { setConsoleText(data.stdout || "(no output)"); }
       const passed = task.expected_output === null ? data.status === "Accepted" : data.passed;
       if (passed) {
         setConsolePassed(true);
-        setConsoleText((prev) => prev + "\n\n✅ Correct! Waiting for your partner...");
+        setConsoleText((prev) => prev + "\n\nCorrect! Waiting for your partner...");
         setShowWaiting(true);
         socketRef.current?.emit("task_complete", { sessionId: state.sessionId, role: state.role });
       } else if (!data.stderr) {
-        setConsoleText((prev) => prev + "\n\n❌ Not quite — check your output and try again!");
+        setConsoleText((prev) => prev + "\n\nNot quite — check your output and try again!");
       }
     } catch {
       setConsoleText("Error: Could not reach code runner.");
       setConsoleError(true);
-    } finally {
-      setRunning(false);
-    }
+    } finally { setRunning(false); }
   };
 
   const sendChat = () => {
     const msg = chatInput.trim();
     if (!msg || !socketRef.current) return;
-    socketRef.current.emit("chat_message", {
-      sessionId: state.sessionId,
-      playerName: state.playerName,
-      message: msg,
-      task: currentTask,
-    });
+    socketRef.current.emit("chat_message", { sessionId: state.sessionId, playerName: state.playerName, message: msg, task: currentTask });
     setChatInput("");
   };
 
@@ -227,10 +220,20 @@ export default function GamePage() {
     loadStage(next);
   };
 
+  const handleLeave = async () => {
+    if (!confirm("Leave this game? Your session will be saved — you can rejoin from the dashboard.")) return;
+    setLeaveLoading(true);
+    try {
+      await fetch(`${SERVER_URL}/api/game/abandon`, { method: "POST", headers: AUTH.authHeaders() });
+    } catch { /* ignore */ }
+    socketRef.current?.disconnect();
+    updateState({ socket: null });
+    router.replace("/dashboard");
+  };
+
   const progress = ((state.currentStage - 1) / 5) * 100;
   const roleInfo = state.role ? ROLE_INFO[state.role] : ROLE_INFO["Builder"];
-  const buildingName = STAGE_BUILDINGS[state.currentStage - 1] ?? "Building";
-
+  const stageBuilding = STAGE_BUILDINGS[state.currentStage - 1] ?? { name: "Building", Icon: BookOpen };
   const levelLabel = state.level === 1 ? "Foundation" : state.level === 2 ? "Walls" : "Roof";
   const levelColor = state.level === 1 ? "#22c55e" : state.level === 2 ? "#f59e0b" : "#ec4899";
 
@@ -238,32 +241,29 @@ export default function GamePage() {
     <>
       {showWaiting && <WaitingModal messages={messages} />}
       {stageComplete && (
-        <StageCompleteModal
-          completedStage={stageComplete.stage}
-          score={stageComplete.score}
-          onNext={handleNextLevel}
-        />
+        <StageCompleteModal completedStage={stageComplete.stage} score={stageComplete.score} onNext={handleNextLevel} />
       )}
 
-      {/* ── Game Header ── */}
+      {/* Header */}
       <header className="flex items-center justify-between px-5 py-2.5 bg-[#facc15] border-b-[3px] border-[#1a1a1a] flex-shrink-0">
         <span className="font-black text-[1.15rem] text-[#1a1a1a]" style={{ fontFamily: "var(--font-display)" }}>
-          CodeCrafters 🏫
+          CodeCrafters
         </span>
 
-        {/* Center — stage info */}
         <div className="flex items-center gap-3">
           {/* Role badge */}
           <span
-            className="text-[11px] py-1 px-3 border-2 border-[#1a1a1a] rounded-full font-black shadow-[var(--shadow-sm)]"
+            className="flex items-center gap-1.5 text-[11px] py-1 px-3 border-2 border-[#1a1a1a] rounded-full font-black shadow-[var(--shadow-sm)]"
             style={{ background: roleInfo.bg, color: roleInfo.textColor }}
           >
-            {roleInfo.icon} {state.role}
+            <roleInfo.Icon size={12} />
+            {state.role}
           </span>
 
           {/* Building name */}
-          <span className="text-[12px] font-black text-[#1a1a1a] hidden sm:block">
-            Stage {state.currentStage}: {buildingName}
+          <span className="hidden sm:flex items-center gap-1.5 text-[12px] font-black text-[#1a1a1a]">
+            <stageBuilding.Icon size={13} />
+            Stage {state.currentStage}: {stageBuilding.name}
           </span>
 
           {/* Level badge */}
@@ -274,7 +274,7 @@ export default function GamePage() {
             {levelLabel}
           </span>
 
-          {/* Progress bar */}
+          {/* Progress */}
           <div className="flex items-center gap-2">
             <div className="w-[120px] h-[9px] bg-white border-2 border-[#1a1a1a] rounded-full overflow-hidden">
               <div
@@ -286,16 +286,26 @@ export default function GamePage() {
           </div>
         </div>
 
-        {/* Score */}
-        <span className="text-[0.9rem] text-[#1a1a1a] font-black bg-white border-2 border-[#1a1a1a] rounded-lg py-1 px-3 shadow-[var(--shadow-sm)]">
-          ✨ {state.score} XP
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[0.9rem] text-[#1a1a1a] font-black bg-white border-2 border-[#1a1a1a] rounded-lg py-1 px-3 shadow-[var(--shadow-sm)]">
+            <Sparkles size={13} />
+            {state.score} XP
+          </span>
+          <button
+            onClick={handleLeave}
+            disabled={leaveLoading}
+            className="flex items-center gap-1 text-[11px] font-black px-3 py-1.5 bg-[#1a1a1a]/10 border border-[#1a1a1a]/30 rounded-lg text-[#1a1a1a]/60 hover:bg-[#1a1a1a]/20 hover:text-[#1a1a1a] transition-all disabled:opacity-40"
+          >
+            <LogOut size={12} />
+            {leaveLoading ? "..." : "Leave"}
+          </button>
+        </div>
       </header>
 
-      {/* ── Game Main ── */}
+      {/* Main */}
       <main className="grid grid-cols-2 flex-1 overflow-hidden" style={{ height: "calc(100vh - 54px)" }}>
 
-        {/* ── Left: Code Panel ── */}
+        {/* Left: Code Panel */}
         <section className="flex flex-col overflow-hidden border-r-2 border-[#1a1a1a] bg-[#f8f7ff]">
 
           {/* Task card */}
@@ -305,7 +315,9 @@ export default function GamePage() {
                 <div className="h-4 bg-[#e9d8a0] rounded w-2/3" />
                 <div className="h-3 bg-[#e9d8a0] rounded w-full" />
                 <div className="h-3 bg-[#e9d8a0] rounded w-5/6" />
-                <p className="text-[11px] text-[#a0856a] font-bold pt-1">✨ AI is generating your challenge...</p>
+                <p className="flex items-center gap-1.5 text-[11px] text-[#a0856a] font-bold pt-1">
+                  <Sparkles size={11} /> AI is generating your challenge...
+                </p>
               </div>
             ) : currentTask ? (
               <div className="bg-[#fff9e6] p-4">
@@ -318,8 +330,8 @@ export default function GamePage() {
                     >
                       {levelLabel}
                     </span>
-                    <span className="text-[9px] font-bold text-[#a0856a] bg-[#fef3c7] border border-[#fbbf24] px-2 py-0.5 rounded-full">
-                      AI ✨
+                    <span className="flex items-center gap-1 text-[9px] font-bold text-[#a0856a] bg-[#fef3c7] border border-[#fbbf24] px-2 py-0.5 rounded-full">
+                      <Sparkles size={9} /> AI
                     </span>
                   </div>
                 </div>
@@ -344,7 +356,7 @@ export default function GamePage() {
             <span className="text-[10px] text-white/30 font-bold">Tab = 4 spaces</span>
           </div>
 
-          {/* Code textarea */}
+          {/* Code editor */}
           <div className="flex-1 overflow-hidden">
             <textarea
               spellCheck={false}
@@ -370,8 +382,16 @@ export default function GamePage() {
           {/* Console label */}
           <div className="flex items-center justify-between px-4 py-1.5 border-t-2 border-[#1a1a1a] bg-[#1e1b2e] flex-shrink-0">
             <span className="text-[10px] font-black text-white/50 tracking-wider">OUTPUT CONSOLE</span>
-            {consolePassed && <span className="text-[10px] font-black text-[#22c55e] animate-pulse">✅ PASSED</span>}
-            {consoleError && <span className="text-[10px] font-black text-[#ef4444]">⚠️ ERROR</span>}
+            {consolePassed && (
+              <span className="flex items-center gap-1 text-[10px] font-black text-[#22c55e] animate-pulse">
+                <CheckCircle2 size={11} /> PASSED
+              </span>
+            )}
+            {consoleError && (
+              <span className="flex items-center gap-1 text-[10px] font-black text-[#ef4444]">
+                <AlertTriangle size={11} /> ERROR
+              </span>
+            )}
           </div>
 
           {/* Console output */}
@@ -389,32 +409,52 @@ export default function GamePage() {
           <button
             disabled={running || taskLoading || !currentTask}
             onClick={handleRun}
-            className="flex-none w-full py-3.5 bg-[#22c55e] text-[#1a1a1a] border-t-2 border-[#1a1a1a] font-black text-[0.95rem] cursor-pointer hover:bg-[#16a34a] hover:-translate-y-0.5 active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-100"
-            style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }}
+            className="flex-none flex items-center justify-center gap-2 w-full py-3.5 bg-[#22c55e] text-[#1a1a1a] border-t-2 border-[#1a1a1a] font-black text-[0.95rem] cursor-pointer hover:bg-[#16a34a] hover:-translate-y-0.5 active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-100"
           >
-            {running ? "⏳ Running your code..." : taskLoading ? "⏳ Loading challenge..." : "▶  RUN & SUBMIT"}
+            {running
+              ? <><Loader2 size={16} className="animate-spin" /> Running your code...</>
+              : taskLoading
+              ? <><Loader2 size={16} className="animate-spin" /> Loading challenge...</>
+              : <><Play size={16} /> Run &amp; Submit</>}
           </button>
         </section>
 
-        {/* ── Right: Campus + Chat ── */}
+        {/* Right: Campus + Chat */}
         <section className="flex flex-col overflow-hidden bg-white">
+
+          {/* Partner disconnect banner */}
+          {partnerDisconnected && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[#fef3c7] border-b-2 border-[#f59e0b] flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-[#92400e] flex-shrink-0" />
+                <div>
+                  <p className="text-[12px] font-black text-[#92400e]">Your partner disconnected</p>
+                  <p className="text-[11px] font-bold text-[#a16207]">They can rejoin from their dashboard.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPartnerDisconnected(false)}
+                className="text-[#92400e]/60 hover:text-[#92400e] transition-colors flex-shrink-0"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
 
           {/* Campus canvas */}
           <div className="flex-1 bg-[#e0f2fe] flex items-stretch justify-stretch overflow-hidden border-b-2 border-[#1a1a1a] relative">
             <CampusCanvas completedStages={state.completedStages} style={{ width: "100%", height: "100%" }} />
-            {/* Stage label overlay */}
-            <div className="absolute top-3 left-3 bg-white/90 border-2 border-[#1a1a1a] rounded-xl px-3 py-1.5 text-[11px] font-black text-[#1a1a1a] shadow-[var(--shadow-sm)]">
-              Building: {buildingName}
+            <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 border-2 border-[#1a1a1a] rounded-xl px-3 py-1.5 text-[11px] font-black text-[#1a1a1a] shadow-[var(--shadow-sm)]">
+              <stageBuilding.Icon size={12} />
+              {stageBuilding.name}
             </div>
           </div>
 
           {/* Chat panel */}
-          <div
-            className={`flex-shrink-0 ${state.isAI ? "h-[290px]" : "h-[195px]"} border-t-2 border-[#1a1a1a] flex flex-col bg-white`}
-          >
+          <div className={`flex-shrink-0 ${state.isAI ? "h-[290px]" : "h-[195px]"} border-t-2 border-[#1a1a1a] flex flex-col bg-white`}>
             {/* Chat header */}
             <div className="flex items-center gap-2 px-4 py-2 border-b border-[#e5e7eb] bg-[#f8f7ff] flex-shrink-0">
-              <span className="text-base">🤖</span>
+              <Bot size={15} className="text-[#7c3aed]" />
               <span className="text-[12px] font-black text-[#7c3aed]">AI Study Buddy</span>
               <span className="text-[10px] text-[#78716c] font-bold">· Ask anything about your task</span>
               <div className="ml-auto w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
@@ -423,8 +463,9 @@ export default function GamePage() {
             {/* Messages */}
             <div ref={chatRef} className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1.5 text-[0.78rem]">
               {messages.length === 0 && (
-                <p className="text-[0.74rem] text-[#78716c] italic font-bold mt-1">
-                  💡 Stuck? Type a question and hit Send — your AI tutor is ready!
+                <p className="flex items-center gap-1.5 text-[0.74rem] text-[#78716c] italic font-bold mt-1">
+                  <Bot size={12} className="flex-shrink-0" />
+                  Stuck? Type a question and hit Send — your AI tutor is ready!
                 </p>
               )}
               {messages.map((m) => (
@@ -437,11 +478,7 @@ export default function GamePage() {
                       {m.sender}{m.role ? ` (${m.role})` : ""}:
                     </span>
                   )}
-                  <span
-                    className={`font-bold min-w-0 break-words leading-snug ${
-                      m.isSystem ? "text-[#78716c] italic" : "text-[#1a1a1a]"
-                    }`}
-                  >
+                  <span className={`font-bold min-w-0 break-words leading-snug ${m.isSystem ? "text-[#78716c] italic" : "text-[#1a1a1a]"}`}>
                     {m.message}
                   </span>
                 </div>
@@ -461,8 +498,9 @@ export default function GamePage() {
               />
               <button
                 onClick={sendChat}
-                className="flex-none py-2 px-4 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.82rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-all duration-100"
+                className="flex-none flex items-center gap-1.5 py-2 px-4 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.82rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-all duration-100"
               >
+                <Send size={13} />
                 Send
               </button>
             </div>

@@ -6,6 +6,11 @@ import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
 import { ActiveSession } from "@/types";
 import { SERVER_URL } from "../CONSTANT";
+import {
+  Construction, Link2, LogOut, Gamepad2,
+  Loader2, ChevronUp, ChevronDown,
+  ArrowLeft, Play,
+} from "lucide-react";
 
 export default function LobbyPage() {
   return (
@@ -25,7 +30,6 @@ function LobbyPageInner() {
   const [showJoinPanel, setShowJoinPanel] = useState(false);
   const [sessionInput, setSessionInput] = useState("");
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
-  const [createLoading, setCreateLoading] = useState(false);
   const [joinLoading, setJoinLoading] = useState(false);
   const [inviteHandled, setInviteHandled] = useState(false);
 
@@ -63,25 +67,6 @@ function LobbyPageInner() {
 
   const handleLogout = () => { AUTH.clearAuth(); resetState(); router.push("/login"); };
 
-  const handleCreate = async () => {
-    setCreateLoading(true);
-    setStatus("Creating your session...");
-    try {
-      const res = await fetch(`${SERVER_URL}/api/game/create`, { method: "POST", headers: AUTH.authHeaders() });
-      const data = await res.json();
-      if (!res.ok) { alert(data.error || "Could not create session."); setStatus(""); return; }
-      updateState({
-        playerName: AUTH.getUsername(),
-        sessionId: data.sessionId,
-        role: data.role,
-        level: (data.level ?? 1) as 1 | 2 | 3,
-      });
-      router.push(`/waiting?sessionId=${data.sessionId}&role=${data.role}`);
-    } catch {
-      alert("Could not connect to server."); setStatus("");
-    } finally { setCreateLoading(false); }
-  };
-
   const handleJoin = async () => {
     const id = (sessionInput || inviteSessionId).trim().toUpperCase();
     if (!id || id.length < 6) { alert("Enter a valid session ID!"); return; }
@@ -95,11 +80,8 @@ function LobbyPageInner() {
       if (!res.ok) { alert(data.error || "Could not join session."); setStatus(""); return; }
       AUTH.clearPendingInviteSessionId();
       updateState({
-        playerName: AUTH.getUsername(),
-        sessionId: data.sessionId,
-        role: data.role,
-        currentStage: data.stage,
-        level: (data.level ?? 1) as 1 | 2 | 3,
+        playerName: AUTH.getUsername(), sessionId: data.sessionId, role: data.role,
+        currentStage: data.stage, level: (data.level ?? 1) as 1 | 2 | 3,
         completedStages: Math.max(0, (data.stage ?? 1) - 1),
       });
       router.push("/game");
@@ -129,11 +111,8 @@ function LobbyPageInner() {
       const data = await res.json();
       if (!res.ok) { alert(data.error); return; }
       updateState({
-        playerName: AUTH.getUsername(),
-        sessionId: activeSession.id,
-        role: data.role,
-        currentStage: data.stage,
-        level: (data.level ?? 1) as 1 | 2 | 3,
+        playerName: AUTH.getUsername(), sessionId: activeSession.id, role: data.role,
+        currentStage: data.stage, level: (data.level ?? 1) as 1 | 2 | 3,
         completedStages: Math.max(0, (data.stage ?? 1) - 1),
       });
       router.push("/game");
@@ -146,16 +125,10 @@ function LobbyPageInner() {
   return (
     <div
       className="relative min-h-screen flex items-center justify-center px-4"
-      style={{
-        backgroundImage: 'url("/images/Background.jpeg")',
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      style={{ backgroundImage: 'url("/images/Background.jpeg")', backgroundSize: "cover", backgroundPosition: "center" }}
     >
-      {/* Dark overlay */}
       <div className="absolute inset-0 bg-[rgba(8,4,25,0.82)] z-0" />
 
-      {/* Lobby card */}
       <div
         className="relative z-10 rounded-3xl px-8 py-8 w-full max-w-[440px] text-white anim-pop"
         style={{
@@ -172,12 +145,13 @@ function LobbyPageInner() {
             <h1 className="text-[1.7rem] text-white" style={{ fontFamily: "var(--font-display)" }}>
               Code<span className="text-[#fbbf24]">Crafters!</span>
             </h1>
-            <p className="text-white/45 text-[12px] font-bold mt-0.5">Hey {username}! Ready to build? 🚀</p>
+            <p className="text-white/45 text-[12px] font-bold mt-0.5">Hey {username}! Ready to build?</p>
           </div>
           <button
             onClick={handleLogout}
-            className="py-1.5 px-3 text-[11px] bg-white/8 text-white/60 border border-white/15 rounded-xl font-bold hover:bg-white/15 hover:text-white transition-all"
+            className="flex items-center gap-1.5 py-1.5 px-3 text-[11px] bg-white/8 text-white/60 border border-white/15 rounded-xl font-bold hover:bg-white/15 hover:text-white transition-all"
           >
+            <LogOut size={12} />
             Logout
           </button>
         </div>
@@ -185,37 +159,43 @@ function LobbyPageInner() {
         {/* Active session banner */}
         {activeSession && (
           <div
-            className="rounded-2xl p-4 mb-5 text-sm"
+            className="rounded-2xl p-4 mb-5"
             style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.35)" }}
           >
-            <p className="text-white/80 font-bold mb-2.5 text-[13px]">
-              🎮 You have an active game — Stage <strong className="text-[#22c55e]">{activeSession.stage}</strong>/5
-              (ID: <strong className="text-white">{activeSession.id}</strong>)
-            </p>
+            <div className="flex items-center gap-2 mb-2.5">
+              <Gamepad2 size={16} className="text-[#22c55e]" />
+              <p className="text-white/80 font-bold text-[13px]">
+                Active game — Stage <strong className="text-[#22c55e]">{activeSession.stage}</strong>/5
+                (ID: <strong className="text-white">{activeSession.id}</strong>)
+              </p>
+            </div>
             <button
               onClick={handleRejoin}
-              className="w-full py-2.5 bg-[#22c55e] text-[#1a1a1a] border-2 border-[#1a1a1a] rounded-xl font-black text-[13px] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-all"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#22c55e] text-[#1a1a1a] border-2 border-[#1a1a1a] rounded-xl font-black text-[13px] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-all"
             >
-              ▶ Rejoin Game
+              <Play size={13} />
+              Rejoin Game
             </button>
           </div>
         )}
 
-        {/* Create / Join buttons */}
+        {/* Buttons */}
         <div className="space-y-3 mb-4">
           <button
-            disabled={createLoading}
-            onClick={handleCreate}
-            className="w-full py-3.5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-2xl font-black text-[0.9rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:bg-[#6d28d9] hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-100"
+            onClick={() => router.push("/dashboard")}
+            className="w-full flex items-center justify-center gap-2 py-3.5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-2xl font-black text-[0.9rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:bg-[#6d28d9] hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px transition-all duration-100"
           >
-            {createLoading ? "Creating..." : "🆕 Create New Game"}
+            <Construction size={16} />
+            Start Building (Pick a Level)
           </button>
 
           <button
             onClick={() => setShowJoinPanel((v) => !v)}
-            className="w-full py-3.5 bg-white/8 text-white border border-white/20 rounded-2xl font-black text-[0.9rem] cursor-pointer hover:bg-white/[0.14] hover:-translate-y-0.5 transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3.5 bg-white/8 text-white border border-white/20 rounded-2xl font-black text-[0.9rem] cursor-pointer hover:bg-white/[0.14] hover:-translate-y-0.5 transition-all"
           >
-            {showJoinPanel ? "▲ Hide Join Panel" : "🔗 Join with Session ID"}
+            <Link2 size={16} />
+            Join with Session ID
+            {showJoinPanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         </div>
 
@@ -234,9 +214,10 @@ function LobbyPageInner() {
             <button
               disabled={joinLoading}
               onClick={handleJoin}
-              className="flex-none py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.85rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-100"
+              className="flex-none flex items-center gap-1.5 py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.85rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 disabled:opacity-50 transition-all duration-100"
             >
-              {joinLoading ? "..." : "Join"}
+              {joinLoading ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+              {joinLoading ? "" : "Join"}
             </button>
           </div>
         )}
@@ -244,10 +225,7 @@ function LobbyPageInner() {
         {/* Status */}
         {status && (
           <div className="mt-4 px-4 py-3 bg-white/[0.06] border border-white/10 rounded-xl text-[12px] text-white/55 font-bold flex items-center gap-2">
-            <span
-              className="w-2.5 h-2.5 rounded-full border-2 flex-shrink-0"
-              style={{ borderColor: "rgba(255,255,255,0.15)", borderTopColor: "#7c6ff7", animation: "spin 0.8s linear infinite" }}
-            />
+            <Loader2 size={13} className="animate-spin text-[#7c6ff7] flex-shrink-0" />
             {status}
           </div>
         )}
@@ -256,9 +234,10 @@ function LobbyPageInner() {
         <div className="mt-6 pt-4 border-t border-white/8 text-center">
           <button
             onClick={() => router.push("/dashboard")}
-            className="text-[12px] text-white/35 font-bold hover:text-white/65 transition-colors"
+            className="flex items-center justify-center gap-1.5 mx-auto text-[12px] text-white/35 font-bold hover:text-white/65 transition-colors"
           >
-            ← Back to Dashboard
+            <ArrowLeft size={12} />
+            Back to Dashboard
           </button>
         </div>
       </div>

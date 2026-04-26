@@ -3,46 +3,49 @@ import { AUTH } from "@/lib/auth";
 import { useGame } from "@/lib/game-context";
 import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import {
+  Users, Bot, Layers, Building2, Home,
+  BookOpen, GraduationCap, Utensils, FlaskConical, Activity,
+  Rocket, Loader2, X, Check,
+  type LucideIcon,
+} from "lucide-react";
 
-const LEVELS = [
+const LEVELS: {
+  id: number;
+  badge: string;
+  name: string;
+  Icon: LucideIcon;
+  desc: string;
+  skills: string[];
+  borderColor: string;
+  badgeColor: string;
+}[] = [
   {
-    id: 1,
-    badge: "Level 1",
-    name: "Foundation",
-    icon: "🧱",
+    id: 1, badge: "Level 1", name: "Foundation", Icon: Layers,
     desc: "Print, variables & data types — the basics.",
     skills: ["print()", "input()", "Variables", "Data types"],
-    borderColor: "#22c55e",
-    badgeColor: "#22c55e",
+    borderColor: "#22c55e", badgeColor: "#22c55e",
   },
   {
-    id: 2,
-    badge: "Level 2",
-    name: "Walls",
-    icon: "🏗️",
+    id: 2, badge: "Level 2", name: "Walls", Icon: Building2,
     desc: "Logic & loops — make your code think.",
     skills: ["if / else", "for loops", "while loops", "Lists"],
-    borderColor: "#f59e0b",
-    badgeColor: "#f59e0b",
+    borderColor: "#f59e0b", badgeColor: "#f59e0b",
   },
   {
-    id: 3,
-    badge: "Level 3",
-    name: "Roof",
-    icon: "🏠",
+    id: 3, badge: "Level 3", name: "Roof", Icon: Home,
     desc: "Functions — write reusable, clean code.",
     skills: ["def", "Parameters", "return", "Scope"],
-    borderColor: "#ec4899",
-    badgeColor: "#ec4899",
+    borderColor: "#ec4899", badgeColor: "#ec4899",
   },
 ];
 
-const BUILDINGS = [
-  { id: "library",     name: "Library",     emoji: "📚" },
-  { id: "classroom",   name: "Classroom",   emoji: "🪑" },
-  { id: "cafeteria",   name: "Cafeteria",   emoji: "🍽️" },
-  { id: "science-lab", name: "Science Lab", emoji: "🧪" },
-  { id: "playground",  name: "Playground",  emoji: "🏃" },
+const BUILDINGS: { id: string; name: string; Icon: LucideIcon }[] = [
+  { id: "library",     name: "Library",     Icon: BookOpen },
+  { id: "classroom",   name: "Classroom",   Icon: GraduationCap },
+  { id: "cafeteria",   name: "Cafeteria",   Icon: Utensils },
+  { id: "science-lab", name: "Science Lab", Icon: FlaskConical },
+  { id: "playground",  name: "Playground",  Icon: Activity },
 ];
 
 export default function StartGameModal({
@@ -122,22 +125,23 @@ export default function StartGameModal({
           <div>
             <h2 className="text-xl font-black">Start Building</h2>
             {selectedBuildingData && (
-              <p className="text-white/45 text-[13px] font-bold mt-0.5">
-                {selectedBuildingData.emoji} {selectedBuildingData.name}
-              </p>
+              <div className="flex items-center gap-1.5 text-white/45 text-[13px] font-bold mt-0.5">
+                <selectedBuildingData.Icon size={13} />
+                {selectedBuildingData.name}
+              </div>
             )}
           </div>
           <button
             onClick={handleClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/8 hover:bg-white/15 text-white/50 hover:text-white text-lg transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/8 hover:bg-white/15 text-white/50 hover:text-white transition-all"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
         <div className="px-7 py-6 space-y-7">
 
-          {/* ── Play Mode ── */}
+          {/* Play Mode */}
           <div>
             <h3 className="text-[11px] font-black tracking-widest text-white/40 mb-3">HOW DO YOU WANT TO PLAY?</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -150,13 +154,15 @@ export default function StartGameModal({
                   boxShadow: playMode === "friend" ? "0 0 0 1px #7c6ff7, 0 4px 20px rgba(124,111,247,0.3)" : "none",
                 }}
               >
-                <div className="text-3xl mb-2">👥</div>
+                <Users size={28} className="mb-2 text-white/70" />
                 <div className="font-black text-[15px] mb-1">Play with a Friend</div>
                 <p className="text-white/50 text-[12px] leading-snug">
                   Create a session, share your ID, and code together in real time.
                 </p>
                 {playMode === "friend" && (
-                  <span className="mt-2 inline-block text-[10px] font-black px-2 py-0.5 rounded-full bg-[#7c6ff7] text-white">Selected ✓</span>
+                  <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#7c6ff7] text-white">
+                    <Check size={10} /> Selected
+                  </div>
                 )}
               </button>
 
@@ -169,19 +175,21 @@ export default function StartGameModal({
                   boxShadow: playMode === "ai" ? "0 0 0 1px #22c55e, 0 4px 20px rgba(34,197,94,0.2)" : "none",
                 }}
               >
-                <div className="text-3xl mb-2">🤖</div>
+                <Bot size={28} className="mb-2 text-white/70" />
                 <div className="font-black text-[15px] mb-1">Play with AI</div>
                 <p className="text-white/50 text-[12px] leading-snug">
                   No partner needed — the AI plays alongside you anytime, day or night.
                 </p>
                 {playMode === "ai" && (
-                  <span className="mt-2 inline-block text-[10px] font-black px-2 py-0.5 rounded-full bg-[#22c55e] text-black">Selected ✓</span>
+                  <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-[#22c55e] text-black">
+                    <Check size={10} /> Selected
+                  </div>
                 )}
               </button>
             </div>
           </div>
 
-          {/* ── Level ── */}
+          {/* Level */}
           <div>
             <h3 className="text-[11px] font-black tracking-widest text-white/40 mb-3">CHOOSE YOUR DIFFICULTY</h3>
             <div className="grid grid-cols-3 gap-3">
@@ -198,7 +206,7 @@ export default function StartGameModal({
                       boxShadow: isSelected ? `0 0 0 1px ${lv.borderColor}, 0 4px 16px ${lv.borderColor}25` : "none",
                     }}
                   >
-                    <div className="text-2xl mb-2">{lv.icon}</div>
+                    <lv.Icon size={24} className="mb-2" style={{ color: lv.badgeColor }} />
                     <span
                       className="inline-block px-2 py-0.5 rounded-full text-[10px] font-black mb-2 border border-[#1a1a1a]"
                       style={{ background: lv.badgeColor, color: "#000" }}
@@ -207,7 +215,6 @@ export default function StartGameModal({
                     </span>
                     <div className="font-black text-[15px] mb-1">{lv.name}</div>
                     <p className="text-white/45 text-[11px] mb-2 leading-snug">{lv.desc}</p>
-                    {/* Skill chips */}
                     <div className="flex flex-wrap gap-1 mt-1">
                       {lv.skills.map(s => (
                         <span
@@ -225,24 +232,22 @@ export default function StartGameModal({
             </div>
           </div>
 
-          {/* ── Start Button ── */}
+          {/* Start Button */}
           <button
             onClick={handleStartBuilding}
             disabled={!canStart || loading}
-            className="w-full py-4 rounded-2xl font-black text-[1.05rem] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-[1.05rem] transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
             style={{
-              background: canStart
-                ? "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)"
-                : "rgba(255,255,255,0.08)",
+              background: canStart ? "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)" : "rgba(255,255,255,0.08)",
               border: canStart ? "2px solid rgba(255,255,255,0.15)" : "2px solid rgba(255,255,255,0.06)",
               color: "white",
               boxShadow: canStart ? "0 4px 20px rgba(124,58,237,0.4)" : "none",
             }}
           >
             {loading
-              ? "⏳ Creating Session..."
+              ? <><Loader2 size={18} className="animate-spin" /> Creating Session...</>
               : canStart
-              ? `🚀 Let's Build — ${playMode === "ai" ? "Play with AI" : "Find a Partner"}!`
+              ? <><Rocket size={18} /> Let&apos;s Build — {playMode === "ai" ? "Play with AI" : "Find a Partner"}</>
               : "Select a mode and level to continue"}
           </button>
         </div>

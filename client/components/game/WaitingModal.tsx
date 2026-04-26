@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatMessage } from "@/types";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 interface WaitingModalProps {
   messages: ChatMessage[];
@@ -10,7 +11,7 @@ const ENCOURAGEMENTS = [
   "Great work! You nailed it!",
   "Your partner is almost there...",
   "Teamwork makes the dream work!",
-  "Python master in the making 🐍",
+  "Python master in the making",
 ];
 
 export default function WaitingModal({ messages }: WaitingModalProps) {
@@ -27,15 +28,13 @@ export default function WaitingModal({ messages }: WaitingModalProps) {
         }}
       >
         {/* Header */}
-        <h2
-          className="text-center text-[1.2rem] mb-1"
-          style={{ fontFamily: "var(--font-display)", color: "#22c55e" }}
-        >
-          ✅ You're done!
-        </h2>
-        <p className="text-center text-white/45 text-[12px] font-bold mb-5">
-          {encouragement}
-        </p>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <CheckCircle2 size={22} className="text-[#22c55e]" style={{ filter: "drop-shadow(0 0 8px #22c55e88)" }} />
+          <h2 className="text-[1.2rem]" style={{ fontFamily: "var(--font-display)", color: "#22c55e" }}>
+            You&apos;re done!
+          </h2>
+        </div>
+        <p className="text-center text-white/45 text-[12px] font-bold mb-5">{encouragement}</p>
 
         {/* Status rows */}
         <div
@@ -43,17 +42,12 @@ export default function WaitingModal({ messages }: WaitingModalProps) {
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
         >
           <div className="flex items-center gap-3 text-[13px] font-black">
-            <span
-              className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-[#22c55e] bg-[#22c55e]"
-            />
+            <CheckCircle2 size={14} className="text-[#22c55e] flex-shrink-0" />
             <span className="text-[#22c55e]">YOU</span>
-            <span className="ml-auto text-[#22c55e] text-[11px]">READY ✓</span>
+            <span className="ml-auto text-[#22c55e] text-[11px]">READY</span>
           </div>
           <div className="flex items-center gap-3 text-[13px] font-black">
-            <span
-              className="w-3 h-3 rounded-full flex-shrink-0 border-[3px] border-t-[#f97316]"
-              style={{ borderColor: "rgba(255,255,255,0.15)", borderTopColor: "#f97316", animation: "spin 0.9s linear infinite" }}
-            />
+            <Loader2 size={14} className="text-[#f97316] flex-shrink-0 animate-spin" />
             <span className="text-white/50">PARTNER</span>
             <span className="ml-auto text-white/30 text-[11px]">WORKING...</span>
           </div>

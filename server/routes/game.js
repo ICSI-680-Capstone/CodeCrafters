@@ -144,6 +144,28 @@ router.get('/active', authMiddleware, async (req, res) => {
   }
 });
 
+// POST /api/game/abandon — mark a session as completed so it no longer
+// appears as an active session. The user is not penalized for leaving.
+router.post('/abandon', authMiddleware, async (req, res) => {
+  const { id: userId } = req.user;
+  try {
+    // Find the most recent incomplete session for this user
+    const players = await Player.find({ userId }).lean();
+    const sessionIds = players.map(p => p.sessionId);
+    const session = await Session.findOne(
+      { _id: { $in: sessionIds }, completed: false },
+    ).sort({ createdAt: -1 }).lean();
+
+    if (!session) return res.json({ ok: true, message: 'No active session found' });
+
+    await Session.updateOne({ _id: session._id }, { $set: { completed: true } });
+    res.json({ ok: true, sessionId: session._id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to abandon session' });
+  }
+});
+
 router.get('/:sessionId', authMiddleware, async (req, res) => {
   const state = await getSessionState(req.params.sessionId);
   if (!state) return res.status(404).json({ error: 'Session not found' });
