@@ -23,7 +23,6 @@ function LoginPageInner() {
 
   const inviteSessionId = (searchParams.get("sessionId") || AUTH.getPendingInviteSessionId() || "").trim().toUpperCase();
 
-  // Initialise from localStorage only after mount to avoid SSR/client hydration mismatch.
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -35,6 +34,7 @@ function LoginPageInner() {
       setRememberMe(true);
     }
   }, []);
+
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
@@ -56,16 +56,10 @@ function LoginPageInner() {
       const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: loginUsername,
-          password: loginPassword,
-        }),
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setLoginError(data.error || "Login failed.");
-        return;
-      }
+      if (!res.ok) { setLoginError(data.error || "Login failed."); return; }
       AUTH.setAuth(data.token, data.username);
       if (rememberMe) {
         AUTH.saveCredentials(loginUsername, loginPassword);
@@ -101,10 +95,7 @@ function LoginPageInner() {
         body: JSON.stringify({ username: regUsername, password: regPassword }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setRegError(data.error || "Registration failed.");
-        return;
-      }
+      if (!res.ok) { setRegError(data.error || "Registration failed."); return; }
       AUTH.setAuth(data.token, data.username);
       resetState();
       if (inviteSessionId) {
@@ -121,220 +112,241 @@ function LoginPageInner() {
   };
 
   const inputCls =
-    "w-full bg-white/10 border border-white/20 rounded-[10px] px-4 py-[0.7rem] text-white font-[700] text-[0.95rem] outline-none placeholder:text-white/45 focus:border-[#fbbf24] focus:shadow-[0_0_0_3px_rgba(251,191,36,0.2)] focus:bg-white/[0.18] transition-[border-color,box-shadow,background] duration-200";
+    "w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white font-bold text-[0.95rem] outline-none placeholder:text-white/40 focus:border-[#fbbf24] focus:shadow-[0_0_0_3px_rgba(251,191,36,0.18)] focus:bg-white/[0.18] transition-all duration-200";
+
+  const features = [
+    { icon: "🧱", text: "Play as Architect or Builder", sub: "Two roles, one team" },
+    { icon: "🐍", text: "Learn Python step by step", sub: "From print() to functions" },
+    { icon: "🏆", text: "5 buildings · 500 XP total", sub: "Library to Playground" },
+    { icon: "🤖", text: "AI Tutor gives you hints", sub: "Never get stuck alone" },
+  ];
 
   return (
-    /* ── Outer split layout ── */
     <div className="flex w-full h-screen min-h-screen overflow-hidden relative">
       {/* LEFT — hero image */}
       <div
-        className="flex-none max-w-[72%] self-stretch shrink-0 border-r border-white/15 min-h-screen bg-[#0d0a1e]"
+        className="flex-none max-w-[72%] self-stretch shrink-0 border-r border-white/10 min-h-screen relative overflow-hidden"
         style={{
           width: "calc(100vh * 16 / 9)",
           backgroundImage: 'url("/images/Background.jpeg")',
           backgroundSize: "100% 100%",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-        }}
-      />
-
-      {/* RIGHT — dark purple auth panel */}
-      <div
-        className="flex-1 flex flex-col items-center justify-center px-6 py-6 relative z-10"
-        style={{
-          background:
-            "linear-gradient(160deg, #1a0a2e 0%, #2d1069 50%, #1a0a2e 100%)",
+          background: "#0d0a1e",
         }}
       >
-        {/* Branding */}
-        <div className="w-full max-w-95 relative z-10">
-          <h1
-            className="text-[36px] text-white leading-[1.1] mb-2"
-            style={{
-              fontFamily: "var(--font-display)",
-              textShadow: "0 3px 20px rgba(0,0,0,0.6)",
-            }}
-          >
-            Code<span className="text-[#fbbf24]">Crafters!</span>
-          </h1>
-          <p
-            className="text-[13px] border text-white/85 font-bold leading-normal mb-[0.85rem]"
-            style={{ textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}
-          >
-            Collaborate. Code. Build Your Campus together.
-          </p>
+        {/* Hero image */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'url("/images/Background.jpeg")',
+            backgroundSize: "100% 100%",
+            backgroundPosition: "center",
+          }}
+        />
+        {/* Gradient overlay at bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-[#0d0a1e]/80 to-transparent" />
 
-          {/* Feature blocks */}
-          <div className="flex flex-col gap-2.5 mb-4">
-            {[
-              "🧱 Play as Architect or Builder",
-              "🐍 Learn Python step by step",
-              "🏆 5 stages · 500 points",
-              "💬 Chat with your partner",
-            ].map((text, index) => (
-              <p
-                key={index}
-                className="flex text-xl items-center gap-2.5 bg-white/8 border border-white/18 rounded-md p-4 text-[13px] font-extrabold text-white transition-[transform,background] duration-150 hover:translate-x-1 hover:bg-white/22"
+        {/* Bottom-left tagline */}
+        <div className="absolute bottom-8 left-8 right-8">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-2 mb-3 backdrop-blur-sm">
+            <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+            <span className="text-white/80 text-sm font-bold">Learn while you build</span>
+          </div>
+          <p
+            className="text-white text-3xl leading-tight drop-shadow-lg"
+            style={{ fontFamily: "var(--font-display)", textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}
+          >
+            Code your school.<br />
+            <span className="text-[#fbbf24]">One building at a time.</span>
+          </p>
+        </div>
+      </div>
+
+      {/* RIGHT — dark auth panel */}
+      <div
+        className="flex-1 flex flex-col items-center justify-center px-6 py-6 overflow-y-auto relative z-10"
+        style={{ background: "linear-gradient(160deg, #1a0a2e 0%, #2d1069 50%, #1a0a2e 100%)" }}
+      >
+        {/* Decorative blobs */}
+        <div className="absolute top-10 right-10 w-32 h-32 rounded-full bg-[#7c3aed]/20 blur-2xl pointer-events-none" />
+        <div className="absolute bottom-16 left-6 w-24 h-24 rounded-full bg-[#fbbf24]/10 blur-2xl pointer-events-none" />
+
+        <div className="w-full max-w-[340px] relative z-10">
+          {/* Brand */}
+          <div className="mb-5">
+            <h1
+              className="text-[38px] text-white leading-none mb-1"
+              style={{ fontFamily: "var(--font-display)", textShadow: "0 3px 24px rgba(124,58,237,0.6)" }}
+            >
+              Code<span className="text-[#fbbf24]">Crafters!</span>
+            </h1>
+            <p className="text-white/60 text-[13px] font-bold">
+              The Python game where you build a whole school 🏫
+            </p>
+          </div>
+
+          {/* Feature pills */}
+          <div className="flex flex-col gap-2 mb-5">
+            {features.map((f, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 bg-white/[0.07] border border-white/10 rounded-xl px-3.5 py-2.5 hover:bg-white/[0.12] hover:translate-x-1 transition-all duration-150 cursor-default"
               >
-                {text}
-              </p>
+                <span className="text-xl flex-shrink-0">{f.icon}</span>
+                <div>
+                  <p className="text-white text-[12.5px] font-extrabold leading-tight">{f.text}</p>
+                  <p className="text-white/40 text-[11px] font-bold">{f.sub}</p>
+                </div>
+              </div>
             ))}
           </div>
 
-          {/* Role chips */}
-          <div className="flex gap-2.5 mb-6">
-            <div className="border-2 border-white/40 rounded-[20px] px-4 py-1.5 text-[13px] font-black bg-[#fbbf24] text-[#1a1a1a] shadow-(--shadow-sm)">
+          {/* Role badges */}
+          <div className="flex gap-2 mb-5">
+            <div className="flex-1 flex items-center justify-center gap-1.5 bg-[#fbbf24] border-2 border-white/30 rounded-xl py-2 text-[12px] font-black text-[#1a1a1a]">
               🧱 Architect
             </div>
-            <div className="border-2 border-[#1a1a1a] rounded-[20px] px-4 py-1.5 text-[13px] font-black bg-[#7c3aed] text-white shadow-(--shadow-sm)">
+            <div className="flex-1 flex items-center justify-center gap-1.5 bg-[#7c3aed] border-2 border-[#1a1a1a] rounded-xl py-2 text-[12px] font-black text-white">
               🔨 Builder
             </div>
           </div>
-        </div>
 
-        {/* Auth box */}
-        <div className="w-full max-w-95 bg-white/[0.07] border border-white/15 rounded-2xl px-6 py-5 shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6">
-            {(["login", "register"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  setTab(t);
-                  t === "login" ? setLoginError("") : setRegError("");
-                }}
-                className={[
-                  "flex-1 py-2.5 rounded-[10px] text-[14px] font-black text-center cursor-pointer border-2 transition-all duration-150",
-                  tab === t
-                    ? "bg-[#7c3aed] text-white border-[#7c3aed] shadow-[0_2px_10px_rgba(124,58,237,0.5)]"
-                    : "bg-white/8 text-white/65 border-white/18 hover:bg-white/[0.14] hover:text-white",
-                ].join(" ")}
-                style={{ fontFamily: "var(--font)" }}
-              >
-                {t === "login" ? "Login" : "Register"}
-              </button>
-            ))}
+          {/* Auth box */}
+          <div className="bg-white/[0.07] border border-white/15 rounded-2xl px-5 py-5 shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+            {/* Tabs */}
+            <div className="flex gap-2 mb-5">
+              {(["login", "register"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setTab(t); t === "login" ? setLoginError("") : setRegError(""); }}
+                  className={[
+                    "flex-1 py-2.5 rounded-xl text-[13.5px] font-black text-center cursor-pointer border-2 transition-all duration-150",
+                    tab === t
+                      ? "bg-[#7c3aed] text-white border-[#7c3aed] shadow-[0_2px_12px_rgba(124,58,237,0.5)]"
+                      : "bg-white/[0.07] text-white/55 border-white/15 hover:bg-white/[0.13] hover:text-white",
+                  ].join(" ")}
+                >
+                  {t === "login" ? "🔑 Login" : "✨ Sign Up"}
+                </button>
+              ))}
+            </div>
+
+            {/* Login Form */}
+            {tab === "login" && (
+              <div className="anim-slide-up">
+                <p className="text-[19px] font-black text-white mb-0.5">Welcome back! 👋</p>
+                <p className="text-[12px] text-white/50 font-bold mb-4">Pick up right where you left off</p>
+                <div className="space-y-3 mb-4">
+                  <input
+                    type="text"
+                    placeholder="👤  Username"
+                    maxLength={24}
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    className={inputCls}
+                  />
+                  <div className="relative">
+                    <input
+                      type={showLoginPassword ? "text" : "password"}
+                      placeholder="🔒  Password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                      className={inputCls}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/45 hover:text-white/90 text-[12px] font-bold transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showLoginPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+                <div className="mb-4 flex items-center gap-2">
+                  <input
+                    id="rememberMe"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded accent-[#7c3aed] cursor-pointer"
+                  />
+                  <label htmlFor="rememberMe" className="text-[12px] text-white/55 font-bold cursor-pointer select-none">
+                    Remember me
+                  </label>
+                </div>
+                <button
+                  disabled={loginLoading}
+                  onClick={handleLogin}
+                  className="w-full py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.9rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] hover:bg-[#6d28d9] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-100"
+                >
+                  {loginLoading ? "Logging in..." : "▶ PLAY NOW!"}
+                </button>
+                {loginError && (
+                  <div className="mt-3 text-[#ff6b6b] text-[0.82rem] font-extrabold bg-red-500/15 border border-red-400/30 rounded-lg px-3 py-2">
+                    ⚠️ {loginError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Register Form */}
+            {tab === "register" && (
+              <div className="anim-slide-up">
+                <p className="text-[19px] font-black text-white mb-0.5">Join for free! 🎉</p>
+                <p className="text-[12px] text-white/50 font-bold mb-4">No credit card needed — just code</p>
+                <div className="space-y-3 mb-4">
+                  <input
+                    type="text"
+                    placeholder="👤  Choose a username"
+                    maxLength={24}
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleRegister()}
+                    className={inputCls}
+                  />
+                  <div className="relative">
+                    <input
+                      type={showRegPassword ? "text" : "password"}
+                      placeholder="🔒  Password (min 6 chars)"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleRegister()}
+                      className={inputCls}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/45 hover:text-white/90 text-[12px] font-bold transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showRegPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+                <button
+                  disabled={regLoading}
+                  onClick={handleRegister}
+                  className="w-full py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.9rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] hover:bg-[#6d28d9] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-100"
+                >
+                  {regLoading ? "Creating account..." : "🚀 Start Building Free!"}
+                </button>
+                {regError && (
+                  <div className="mt-3 text-[#ff6b6b] text-[0.82rem] font-extrabold bg-red-500/15 border border-red-400/30 rounded-lg px-3 py-2">
+                    ⚠️ {regError}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Login Form */}
-          {tab === "login" && (
-            <div>
-              <p className="text-[20px] font-black text-white mb-1">
-                Ready to play? 🎮
-              </p>
-              <p className="text-[13px] text-white/65 font-bold mb-5">
-                Login to jump back in!
-              </p>
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="👤  Username"
-                  maxLength={24}
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  className={inputCls}
-                />
-              </div>
-              <div className="mb-4 relative">
-                <input
-                  type={showLoginPassword ? "text" : "password"}
-                  placeholder="🔒  Password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  className={inputCls}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/90 text-[13px] font-bold transition-colors"
-                  tabIndex={-1}
-                >
-                  {showLoginPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-              <div className="mb-4 flex items-center gap-2">
-                <input
-                  id="rememberMe"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded accent-[#7c3aed] cursor-pointer"
-                />
-                <label htmlFor="rememberMe" className="text-[13px] text-white/65 font-bold cursor-pointer select-none">
-                  Remember me
-                </label>
-              </div>
-              <button
-                disabled={loginLoading}
-                onClick={handleLogin}
-                className="w-full py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-[10px] font-black text-[0.9rem] cursor-pointer shadow-(--shadow-sm) hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-[transform,box-shadow] duration-100"
-                style={{ fontFamily: "var(--font)" }}
-              >
-                {loginLoading ? "Logging in..." : "▶ PLAY NOW!"}
-              </button>
-              {loginError && (
-                <div className="mt-3 text-[#ff6b6b] text-[0.85rem] font-extrabold bg-red-500/15 border border-red-400/30 rounded-lg px-3 py-2">
-                  {loginError}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Register Form */}
-          {tab === "register" && (
-            <div>
-              <p className="text-[20px] font-[900] text-white mb-1">
-                Join the fun! 🎉
-              </p>
-              <p className="text-[13px] text-white/65 font-bold mb-5">
-                Create your free account!
-              </p>
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="👤  Username"
-                  maxLength={24}
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleRegister()}
-                  className={inputCls}
-                />
-              </div>
-              <div className="mb-4 relative">
-                <input
-                  type={showRegPassword ? "text" : "password"}
-                  placeholder="🔒  Password (min 6 chars)"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleRegister()}
-                  className={inputCls}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowRegPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/90 text-[13px] font-bold transition-colors"
-                  tabIndex={-1}
-                >
-                  {showRegPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-              <button
-                disabled={regLoading}
-                onClick={handleRegister}
-                className="w-full py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-[10px] font-[900] text-[0.9rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-[transform,box-shadow] duration-100"
-                style={{ fontFamily: "var(--font)" }}
-              >
-                {regLoading ? "Registering..." : "🚀 Let's Go!"}
-              </button>
-              {regError && (
-                <div className="mt-3 text-[#ff6b6b] text-[0.85rem] font-[800] bg-red-500/15 border border-red-400/30 rounded-[8px] px-3 py-2">
-                  {regError}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Bottom nudge */}
+          <p className="text-center text-white/30 text-[11px] font-bold mt-4">
+            Trusted by students learning Python 🐍
+          </p>
         </div>
       </div>
     </div>

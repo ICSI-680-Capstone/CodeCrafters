@@ -6,51 +6,90 @@ interface WaitingModalProps {
   messages: ChatMessage[];
 }
 
+const ENCOURAGEMENTS = [
+  "Great work! You nailed it!",
+  "Your partner is almost there...",
+  "Teamwork makes the dream work!",
+  "Python master in the making 🐍",
+];
+
 export default function WaitingModal({ messages }: WaitingModalProps) {
+  const encouragement = ENCOURAGEMENTS[Math.floor(Date.now() / 1000) % ENCOURAGEMENTS.length];
+
   return (
-    /* Modal backdrop */
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
-      {/* Modal box */}
-      <div className="bg-white border-[3px] border-[#1a1a1a] rounded-[20px] py-8 px-10 max-w-[420px] w-[90%] text-center shadow-[var(--shadow)]">
+    <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-[100] backdrop-blur-sm">
+      <div
+        className="relative rounded-3xl py-7 px-7 max-w-[400px] w-[92%] text-white anim-pop"
+        style={{
+          background: "linear-gradient(160deg, #1a1040 0%, #0d0b1e 100%)",
+          border: "1.5px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+        }}
+      >
+        {/* Header */}
         <h2
-          className="text-[1.4rem] text-[#7c3aed] mb-2"
-          style={{ fontFamily: "var(--font-display)" }}
+          className="text-center text-[1.2rem] mb-1"
+          style={{ fontFamily: "var(--font-display)", color: "#22c55e" }}
         >
-          STATUS: SYNCING...
+          ✅ You're done!
         </h2>
-        <p className="text-[var(--text-muted)] text-[0.9rem] font-bold mb-4">
-          Your task is complete. Waiting for partner to finish.
+        <p className="text-center text-white/45 text-[12px] font-bold mb-5">
+          {encouragement}
         </p>
 
         {/* Status rows */}
-        <div className="flex items-center gap-[0.6rem] my-[0.4rem] text-[0.85rem] font-[900]">
-          <span className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-[#1a1a1a] bg-[#22c55e]" />
-          YOU: READY
-        </div>
-        <div className="flex items-center gap-[0.6rem] my-[0.4rem] text-[0.85rem] font-[900]">
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0 bg-transparent"
-            style={{
-              border: "3px solid var(--surface2)",
-              borderTopColor: "var(--orange)",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-          PARTNER: WORKING...
+        <div
+          className="rounded-2xl p-4 mb-4 space-y-2.5"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <div className="flex items-center gap-3 text-[13px] font-black">
+            <span
+              className="w-3 h-3 rounded-full flex-shrink-0 border-2 border-[#22c55e] bg-[#22c55e]"
+            />
+            <span className="text-[#22c55e]">YOU</span>
+            <span className="ml-auto text-[#22c55e] text-[11px]">READY ✓</span>
+          </div>
+          <div className="flex items-center gap-3 text-[13px] font-black">
+            <span
+              className="w-3 h-3 rounded-full flex-shrink-0 border-[3px] border-t-[#f97316]"
+              style={{ borderColor: "rgba(255,255,255,0.15)", borderTopColor: "#f97316", animation: "spin 0.9s linear infinite" }}
+            />
+            <span className="text-white/50">PARTNER</span>
+            <span className="ml-auto text-white/30 text-[11px]">WORKING...</span>
+          </div>
         </div>
 
-        {/* Mini chat */}
-        <div className="mt-3 text-left">
-          <div className="max-h-[100px] overflow-y-auto flex flex-col gap-[0.3rem] text-[0.75rem]">
-            {messages.map((m) => (
-              <div key={m.id} className="flex gap-2">
-                {!m.isSystem && <span className="text-[#7c3aed] font-[900]">{m.sender}:</span>}
-                <span className={`font-bold ${m.isSystem ? "text-[var(--text-muted)] italic" : "text-[var(--text)]"}`}>
-                  {m.message}
-                </span>
-              </div>
-            ))}
+        {/* Mini chat log */}
+        {messages.length > 0 && (
+          <div
+            className="rounded-xl p-3"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <p className="text-[10px] font-black tracking-widest text-white/30 mb-2">CHAT</p>
+            <div className="max-h-[80px] overflow-y-auto flex flex-col gap-1 text-[0.72rem]">
+              {messages.map((m) => (
+                <div key={m.id} className="flex gap-1.5">
+                  {!m.isSystem && (
+                    <span className="text-[#7c6ff7] font-black flex-shrink-0">{m.sender}:</span>
+                  )}
+                  <span className={`font-bold leading-snug ${m.isSystem ? "text-white/35 italic" : "text-white/65"}`}>
+                    {m.message}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* Waiting dots */}
+        <div className="flex justify-center gap-1.5 mt-5">
+          {[0, 1, 2].map(i => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-[#7c6ff7]/50"
+              style={{ animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
+            />
+          ))}
         </div>
       </div>
     </div>

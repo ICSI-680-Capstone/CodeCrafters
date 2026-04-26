@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { STAGES } from "@/lib/stages";
 
 interface StageCompleteModalProps {
@@ -9,53 +8,102 @@ interface StageCompleteModalProps {
   onNext: () => void;
 }
 
-export default function StageCompleteModal({ completedStage, score, onNext }: StageCompleteModalProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const building = STAGES[completedStage - 1]?.building || "Building";
+const STAGE_EMOJIS = ["📚", "🪑", "🍽️", "🧪", "🏃"];
+const XP_PER_STAGE = 100;
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const W = canvas.width, H = canvas.height;
-    ctx.fillStyle = "#e0f2fe";
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#1a1a1a";
-    ctx.font = "bold 18px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(`🏫 ${completedStage}/5 stages`, W / 2, H / 2);
-  }, [completedStage]);
+export default function StageCompleteModal({ completedStage, score, onNext }: StageCompleteModalProps) {
+  const building = STAGES[completedStage - 1]?.building || "Building";
+  const emoji = STAGE_EMOJIS[completedStage - 1] ?? "🏗️";
+  const progressPct = Math.round((completedStage / 5) * 100);
+  const isLastStage = completedStage === 5;
 
   return (
-    /* Modal backdrop */
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
-      {/* Modal box — celebrate variant */}
-      <div className="bg-white border-[3px] border-[#1a1a1a] rounded-[20px] py-8 px-10 max-w-[420px] w-[90%] text-center shadow-[var(--shadow)]">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] backdrop-blur-sm">
+      <div
+        className="relative rounded-3xl py-8 px-8 max-w-[420px] w-[92%] text-center text-white anim-pop"
+        style={{
+          background: "linear-gradient(160deg, #1a1040 0%, #0d0b1e 100%)",
+          border: "1.5px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(124,111,247,0.2)",
+        }}
+      >
+        {/* Celebration emoji */}
+        <div className="text-5xl mb-2 anim-celebrate">{isLastStage ? "🏆" : "⚡"}</div>
+
+        {/* Title */}
         <h2
-          className="text-[1.6rem] text-[#22c55e] mb-2"
-          style={{ fontFamily: "var(--font-display)" }}
+          className="text-[1.5rem] mb-1"
+          style={{ fontFamily: "var(--font-display)", color: "#22c55e", textShadow: "0 0 20px rgba(34,197,94,0.4)" }}
         >
-          LEVEL {completedStage} COMPLETE!
+          {isLastStage ? "Campus Built!" : `Stage ${completedStage} Done!`}
         </h2>
-        <p className="text-[var(--text-muted)] text-[0.9rem] font-bold mb-4">
-          {building} Built.
+
+        {/* Building name */}
+        <p className="text-white/50 text-sm font-bold mb-5">
+          {emoji} {building} complete
         </p>
-        <canvas
-          ref={canvasRef}
-          width={300}
-          height={160}
-          className="rounded-[10px] my-3 mx-auto block"
-        />
-        <p className="text-[var(--text-muted)] text-[0.9rem] font-bold mt-3 mb-5">
-          Team Score: {score}/500 | Progress: {((completedStage / 5) * 100).toFixed(0)}%
-        </p>
+
+        {/* XP earned pill */}
+        <div className="flex justify-center mb-5">
+          <span
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-black"
+            style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}
+          >
+            ✨ +{XP_PER_STAGE} XP earned!
+          </span>
+        </div>
+
+        {/* Progress */}
+        <div
+          className="rounded-2xl px-5 py-4 mb-5"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-[11px] font-black tracking-widest text-white/40">CAMPUS PROGRESS</span>
+            <span className="text-[11px] font-black text-[#7c6ff7]">{completedStage}/5 stages</span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-2.5 bg-white/8 rounded-full overflow-hidden mb-2">
+            <div
+              className="h-full rounded-full transition-all duration-1000"
+              style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #7c6ff7, #22c55e)" }}
+            />
+          </div>
+
+          {/* Stage dots */}
+          <div className="flex justify-between mt-2">
+            {STAGE_EMOJIS.map((e, i) => (
+              <span
+                key={i}
+                className="text-lg transition-all"
+                style={{ opacity: i < completedStage ? 1 : 0.2, filter: i < completedStage ? "none" : "grayscale(1)" }}
+              >
+                {e}
+              </span>
+            ))}
+          </div>
+
+          {/* Score */}
+          <div className="mt-3 pt-3 border-t border-white/8 flex justify-between items-center">
+            <span className="text-[11px] text-white/40 font-bold">Team Score</span>
+            <span className="text-[#7c6ff7] font-black text-lg">{score} XP</span>
+          </div>
+        </div>
+
+        {/* CTA */}
         <button
           onClick={onNext}
-          className="w-full py-3 px-5 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-[10px] font-[900] text-[0.9rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] transition-[transform,box-shadow] duration-100"
-          style={{ fontFamily: "var(--font)" }}
+          className="w-full py-3.5 rounded-2xl font-black text-base text-white transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(124,111,247,0.5)] active:translate-y-0"
+          style={{
+            background: isLastStage
+              ? "linear-gradient(135deg, #fbbf24, #f59e0b)"
+              : "linear-gradient(135deg, #7c3aed, #a855f7)",
+            border: "2px solid rgba(255,255,255,0.15)",
+            color: isLastStage ? "#1a1a1a" : "white",
+          }}
         >
-          GO TO NEXT LEVEL &gt;&gt;
+          {isLastStage ? "🏆 See Final Results!" : "Next Stage ▶"}
         </button>
       </div>
     </div>

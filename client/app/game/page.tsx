@@ -16,7 +16,6 @@ const CampusCanvas = dynamic(() => import("@/components/campus/CampusCanvas"), {
 let idCounter = 0;
 const uid = () => String(++idCounter);
 
-/** Pick a random static task for the given stage/level/role as fallback. */
 function staticTask(stageNumber: number, level: 1 | 2 | 3, role: "Architect" | "Builder"): Task | null {
   const stage = STAGES[stageNumber - 1];
   if (!stage) return null;
@@ -24,6 +23,13 @@ function staticTask(stageNumber: number, level: 1 | 2 | 3, role: "Architect" | "
   if (!tasks?.length) return null;
   return tasks[Math.floor(Math.random() * tasks.length)];
 }
+
+const ROLE_INFO = {
+  Architect: { color: "#fbbf24", bg: "#fbbf24", textColor: "#1a1a1a", icon: "🧱", desc: "You design the blueprint" },
+  Builder:   { color: "#a78bfa", bg: "#7c3aed", textColor: "#fff",    icon: "🔨", desc: "You write the code" },
+};
+
+const STAGE_BUILDINGS = ["Library 📚", "Classroom 🪑", "Cafeteria 🍽️", "Science Lab 🧪", "Playground 🏃"];
 
 export default function GamePage() {
   const router = useRouter();
@@ -34,6 +40,7 @@ export default function GamePage() {
   const [taskLoading, setTaskLoading] = useState(false);
   const [consoleText, setConsoleText] = useState("Output will appear here...");
   const [consoleError, setConsoleError] = useState(false);
+  const [consolePassed, setConsolePassed] = useState(false);
   const [running, setRunning] = useState(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -50,57 +57,34 @@ export default function GamePage() {
   const socketRef = useRef<any>(state.socket);
   socketRef.current = state.socket;
 
-  // Incremented on every loadStage call; lets async completions detect they're stale.
   const loadGenRef = useRef(0);
 
-  /**
-   * Load a task for the given stage number.
-   * 1. Tries POST /api/task/generate (Gemini).
-   * 2. Falls back to the static STAGES bank on any failure.
-   */
   const loadStage = useCallback(
     async (stageNumber: number) => {
       if (!state.role) return;
-
       const gen = ++loadGenRef.current;
-
       setTaskLoading(true);
       setCurrentTask(null);
       setCode("");
       setConsoleText("Output will appear here...");
       setConsoleError(false);
+      setConsolePassed(false);
 
       let task: Task | null = null;
-
       try {
         const res = await fetch(`${SERVER_URL}/api/task/generate`, {
           method: "POST",
           headers: AUTH.authHeaders(),
           body: JSON.stringify({ stage: stageNumber, level: state.level, role: state.role }),
         });
-
         const data = await res.json();
+        if (res.ok && !data.fallback) task = data as Task;
+      } catch { /* fall through */ }
 
-        if (res.ok && !data.fallback) {
-          task = data as Task;
-        }
-      } catch {
-        // network error — fall through to static
-      }
-
-      // Discard if a newer loadStage call was made while this one was in-flight
       if (gen !== loadGenRef.current) return;
 
-      // Static fallback
-      if (!task) {
-        task = staticTask(stageNumber, state.level, state.role);
-      }
-
-      if (task) {
-        setCurrentTask(task);
-        setCode(task.starterCode);
-      }
-
+      if (!task) task = staticTask(stageNumber, state.level, state.role);
+      if (task) { setCurrentTask(task); setCode(task.starterCode); }
       setTaskLoading(false);
     },
     [state.role, state.level],
@@ -150,7 +134,7 @@ export default function GamePage() {
       });
       socket.on("partner_status", ({ ready, allReady }: any) => {
         if (ready && !allReady) {
-          setMessages((prev) => [...prev, { id: uid(), sender: "", message: "Your partner is ready! Finishing up...", isSystem: true }]);
+          setMessages((prev) => [...prev, { id: uid(), sender: "", message: "Your partner finished — hang tight!", isSystem: true }]);
         }
       });
       socket.on("stage_complete", ({ completedStage, nextStage, score }: any) => {
@@ -173,13 +157,11 @@ export default function GamePage() {
     return () => {
       const socket = activeSocket || socketRef.current;
       if (!socket) return;
-
       socket.off("chat_message");
       socket.off("partner_status");
       socket.off("stage_complete");
       socket.off("game_complete");
       socket.off("player_disconnected");
-
       if (createdSocket && socket === createdSocket) {
         socket.disconnect();
         if (socketRef.current === socket) {
@@ -193,8 +175,9 @@ export default function GamePage() {
   const handleRun = async () => {
     if (!code.trim() || !currentTask) return;
     setRunning(true);
-    setConsoleText("...");
+    setConsoleText("Running...");
     setConsoleError(false);
+    setConsolePassed(false);
     try {
       const task = currentTask;
       const res = await fetch(`${SERVER_URL}/api/code/run`, {
@@ -203,26 +186,38 @@ export default function GamePage() {
         body: JSON.stringify({ source_code: code, expected_output: task.expected_output }),
       });
       const data = await res.json();
-      if (data.stderr) { setConsoleText(data.stderr); setConsoleError(true); }
-      else { setConsoleText(data.stdout || "(no output)"); }
+      if (data.stderr) {
+        setConsoleText(data.stderr);
+        setConsoleError(true);
+      } else {
+        setConsoleText(data.stdout || "(no output)");
+      }
       const passed = task.expected_output === null ? data.status === "Accepted" : data.passed;
       if (passed) {
-        setConsoleText((prev) => prev + "\n\n✅ Correct! Waiting for partner...");
+        setConsolePassed(true);
+        setConsoleText((prev) => prev + "\n\n✅ Correct! Waiting for your partner...");
         setShowWaiting(true);
         socketRef.current?.emit("task_complete", { sessionId: state.sessionId, role: state.role });
       } else if (!data.stderr) {
-        setConsoleText((prev) => prev + "\n\n❌ Not quite right — try again!");
+        setConsoleText((prev) => prev + "\n\n❌ Not quite — check your output and try again!");
       }
     } catch {
       setConsoleText("Error: Could not reach code runner.");
       setConsoleError(true);
-    } finally { setRunning(false); }
+    } finally {
+      setRunning(false);
+    }
   };
 
   const sendChat = () => {
     const msg = chatInput.trim();
     if (!msg || !socketRef.current) return;
-    socketRef.current.emit("chat_message", { sessionId: state.sessionId, playerName: state.playerName, message: msg, task: currentTask });
+    socketRef.current.emit("chat_message", {
+      sessionId: state.sessionId,
+      playerName: state.playerName,
+      message: msg,
+      task: currentTask,
+    });
     setChatInput("");
   };
 
@@ -233,73 +228,127 @@ export default function GamePage() {
   };
 
   const progress = ((state.currentStage - 1) / 5) * 100;
+  const roleInfo = state.role ? ROLE_INFO[state.role] : ROLE_INFO["Builder"];
+  const buildingName = STAGE_BUILDINGS[state.currentStage - 1] ?? "Building";
+
+  const levelLabel = state.level === 1 ? "Foundation" : state.level === 2 ? "Walls" : "Roof";
+  const levelColor = state.level === 1 ? "#22c55e" : state.level === 2 ? "#f59e0b" : "#ec4899";
 
   return (
     <>
       {showWaiting && <WaitingModal messages={messages} />}
       {stageComplete && (
-        <StageCompleteModal completedStage={stageComplete.stage} score={stageComplete.score} onNext={handleNextLevel} />
+        <StageCompleteModal
+          completedStage={stageComplete.stage}
+          score={stageComplete.score}
+          onNext={handleNextLevel}
+        />
       )}
 
       {/* ── Game Header ── */}
-      <header className="flex items-center justify-between px-6 py-3 bg-[#facc15] border-b-[3px] border-[#1a1a1a] flex-shrink-0">
-        <span className="font-[900] text-[1.2rem] text-[#1a1a1a]" style={{ fontFamily: "var(--font-display)" }}>
+      <header className="flex items-center justify-between px-5 py-2.5 bg-[#facc15] border-b-[3px] border-[#1a1a1a] flex-shrink-0">
+        <span className="font-black text-[1.15rem] text-[#1a1a1a]" style={{ fontFamily: "var(--font-display)" }}>
           CodeCrafters 🏫
         </span>
-        <div className="flex items-center gap-[0.6rem] text-[0.85rem] font-[800]">
-          <span className="text-[0.75rem] py-[0.25rem] px-[0.75rem] bg-[#7c3aed] border-2 border-[#1a1a1a] rounded-[20px] text-white mr-3 font-[900] shadow-[var(--shadow-sm)]">
-            {state.role}
+
+        {/* Center — stage info */}
+        <div className="flex items-center gap-3">
+          {/* Role badge */}
+          <span
+            className="text-[11px] py-1 px-3 border-2 border-[#1a1a1a] rounded-full font-black shadow-[var(--shadow-sm)]"
+            style={{ background: roleInfo.bg, color: roleInfo.textColor }}
+          >
+            {roleInfo.icon} {state.role}
           </span>
-          <div className="w-[160px] h-[10px] bg-white border-2 border-[#1a1a1a] rounded-[20px] overflow-hidden">
-            <div
-              className="h-full bg-[#22c55e] rounded-[20px] transition-[width] duration-500 ease-in-out"
-              style={{ width: `${progress}%` }}
-            />
+
+          {/* Building name */}
+          <span className="text-[12px] font-black text-[#1a1a1a] hidden sm:block">
+            Stage {state.currentStage}: {buildingName}
+          </span>
+
+          {/* Level badge */}
+          <span
+            className="text-[10px] py-0.5 px-2.5 rounded-full font-black border-2 border-[#1a1a1a]"
+            style={{ background: levelColor, color: "#000" }}
+          >
+            {levelLabel}
+          </span>
+
+          {/* Progress bar */}
+          <div className="flex items-center gap-2">
+            <div className="w-[120px] h-[9px] bg-white border-2 border-[#1a1a1a] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#22c55e] rounded-full transition-[width] duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-black text-[#1a1a1a]">{state.currentStage}/5</span>
           </div>
-          <span>Stage {state.currentStage} / 5</span>
         </div>
-        <span className="text-[0.95rem] text-[#1a1a1a] font-[900] bg-white border-2 border-[#1a1a1a] rounded-[8px] py-1 px-3 shadow-[var(--shadow-sm)]">
-          Score: {state.score}
+
+        {/* Score */}
+        <span className="text-[0.9rem] text-[#1a1a1a] font-black bg-white border-2 border-[#1a1a1a] rounded-lg py-1 px-3 shadow-[var(--shadow-sm)]">
+          ✨ {state.score} XP
         </span>
       </header>
 
       {/* ── Game Main ── */}
-      <main className="grid grid-cols-2 flex-1 overflow-hidden" style={{ height: "calc(100vh - 58px)" }}>
+      <main className="grid grid-cols-2 flex-1 overflow-hidden" style={{ height: "calc(100vh - 54px)" }}>
 
-        {/* Code Panel */}
-        <section className="flex flex-col overflow-hidden border-r-2 border-[#1a1a1a] p-4 gap-3 bg-[#fafafa]">
+        {/* ── Left: Code Panel ── */}
+        <section className="flex flex-col overflow-hidden border-r-2 border-[#1a1a1a] bg-[#f8f7ff]">
 
-          {/* Task card — loading skeleton or real content */}
-          {taskLoading ? (
-            <div className="bg-[#fff9e6] border-2 border-[#1a1a1a] rounded-[10px] p-[0.9rem_1rem] flex-shrink-0 shadow-[var(--shadow-sm)] animate-pulse space-y-2">
-              <div className="h-4 bg-[#e9d8a0] rounded w-2/3" />
-              <div className="h-3 bg-[#e9d8a0] rounded w-full" />
-              <div className="h-3 bg-[#e9d8a0] rounded w-5/6" />
-              <div className="h-3 bg-[#e9d8a0] rounded w-4/6" />
-              <p className="text-[0.75rem] text-[#a0856a] font-bold pt-1">✨ Generating your question...</p>
-            </div>
-          ) : currentTask ? (
-            <div className="bg-[#fff9e6] border-2 border-[#1a1a1a] rounded-[10px] p-[0.9rem_1rem] text-[0.85rem] flex-shrink-0 shadow-[var(--shadow-sm)]">
-              <div className="flex items-center justify-between mb-[0.35rem]">
-                <h3 className="text-[#7c3aed] text-[0.95rem] font-[900]">{currentTask.title}</h3>
-                <span className="text-[10px] font-bold text-[#a0856a] bg-[#fef3c7] border border-[#fbbf24] px-2 py-0.5 rounded-full">
-                  ✨ AI
-                </span>
+          {/* Task card */}
+          <div className="flex-shrink-0 border-b-2 border-[#1a1a1a]">
+            {taskLoading ? (
+              <div className="bg-[#fff9e6] p-4 animate-pulse space-y-2">
+                <div className="h-4 bg-[#e9d8a0] rounded w-2/3" />
+                <div className="h-3 bg-[#e9d8a0] rounded w-full" />
+                <div className="h-3 bg-[#e9d8a0] rounded w-5/6" />
+                <p className="text-[11px] text-[#a0856a] font-bold pt-1">✨ AI is generating your challenge...</p>
               </div>
-              <p className="text-[var(--text-muted)] mb-[0.4rem] font-bold">{currentTask.description}</p>
-              <ul className="pl-5 text-[var(--text)] font-bold">
-                {currentTask.steps.map((s, i) => (
-                  <li key={i} className="mb-[0.2rem]">{s}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+            ) : currentTask ? (
+              <div className="bg-[#fff9e6] p-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="text-[#7c3aed] text-[0.9rem] font-black leading-tight">{currentTask.title}</h3>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span
+                      className="text-[9px] font-black px-1.5 py-0.5 rounded-full border border-[#1a1a1a]"
+                      style={{ background: levelColor, color: "#000" }}
+                    >
+                      {levelLabel}
+                    </span>
+                    <span className="text-[9px] font-bold text-[#a0856a] bg-[#fef3c7] border border-[#fbbf24] px-2 py-0.5 rounded-full">
+                      AI ✨
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[#78716c] text-[0.8rem] font-bold mb-2">{currentTask.description}</p>
+                <ol className="space-y-1 pl-1">
+                  {currentTask.steps.map((s, i) => (
+                    <li key={i} className="flex gap-2 text-[0.78rem] font-bold text-[#1a1a1a]">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[#7c3aed] text-white text-[10px] font-black flex items-center justify-center">
+                        {i + 1}
+                      </span>
+                      <span className="leading-snug">{s}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </div>
 
-          {/* Code editor */}
+          {/* Editor label */}
+          <div className="flex items-center justify-between px-4 py-1.5 bg-[#1e1b2e] border-b border-white/10 flex-shrink-0">
+            <span className="text-[10px] font-black text-white/50 tracking-wider">PYTHON EDITOR</span>
+            <span className="text-[10px] text-white/30 font-bold">Tab = 4 spaces</span>
+          </div>
+
+          {/* Code textarea */}
           <div className="flex-1 overflow-hidden">
             <textarea
               spellCheck={false}
-              placeholder="# Write your Python here..."
+              placeholder="# Write your Python code here..."
               value={code}
               onChange={(e) => setCode(e.target.value)}
               disabled={taskLoading}
@@ -314,80 +363,108 @@ export default function GamePage() {
                   requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 4; });
                 }
               }}
-              className="w-full h-full bg-[#1e1b2e] text-[#a78bfa] border-2 border-[#1a1a1a] rounded-[10px] p-4 font-['Courier_New',monospace] text-[0.9rem] leading-[1.6] resize-none outline-none disabled:opacity-40"
+              className="w-full h-full bg-[#1e1b2e] text-[#a78bfa] p-4 font-['Courier_New',monospace] text-[0.875rem] leading-[1.65] resize-none outline-none disabled:opacity-40 placeholder:text-white/20"
             />
           </div>
 
-          {/* Console */}
-          <div className="flex-shrink-0 h-[110px]">
+          {/* Console label */}
+          <div className="flex items-center justify-between px-4 py-1.5 border-t-2 border-[#1a1a1a] bg-[#1e1b2e] flex-shrink-0">
+            <span className="text-[10px] font-black text-white/50 tracking-wider">OUTPUT CONSOLE</span>
+            {consolePassed && <span className="text-[10px] font-black text-[#22c55e] animate-pulse">✅ PASSED</span>}
+            {consoleError && <span className="text-[10px] font-black text-[#ef4444]">⚠️ ERROR</span>}
+          </div>
+
+          {/* Console output */}
+          <div className="flex-shrink-0 h-[100px]">
             <div
-              className={`h-full bg-[#1e1b2e] border-2 border-[#1a1a1a] rounded-[10px] px-4 py-3 text-[0.8rem] overflow-y-auto whitespace-pre-wrap font-['Courier_New',monospace] font-bold ${consoleError ? "text-[#ef4444]" : "text-[#22c55e]"}`}
+              className={`h-full bg-[#0d0b1e] px-4 py-3 text-[0.78rem] overflow-y-auto whitespace-pre-wrap font-['Courier_New',monospace] font-bold leading-relaxed ${
+                consoleError ? "text-[#ef4444]" : consolePassed ? "text-[#22c55e]" : "text-[#a78bfa]"
+              }`}
             >
               {consoleText}
             </div>
           </div>
 
+          {/* Run button */}
           <button
             disabled={running || taskLoading || !currentTask}
             onClick={handleRun}
-            className="flex-none w-full mt-3 py-3 bg-[#22c55e] text-[#1a1a1a] border-2 border-[#1a1a1a] rounded-[10px] font-[900] text-[0.95rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0_#1a1a1a] active:translate-y-px active:shadow-[2px_2px_0_#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-[transform,box-shadow] duration-100"
-            style={{ fontFamily: "var(--font)" }}
+            className="flex-none w-full py-3.5 bg-[#22c55e] text-[#1a1a1a] border-t-2 border-[#1a1a1a] font-black text-[0.95rem] cursor-pointer hover:bg-[#16a34a] hover:-translate-y-0.5 active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-100"
+            style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3)" }}
           >
-            {running ? "⏳ Running..." : taskLoading ? "⏳ Loading question..." : "▶ RUN CODE / SUBMIT"}
+            {running ? "⏳ Running your code..." : taskLoading ? "⏳ Loading challenge..." : "▶  RUN & SUBMIT"}
           </button>
         </section>
 
-        {/* Campus + Chat Panel */}
-        <section className="flex flex-col overflow-hidden border-r-2 border-[#1a1a1a]">
+        {/* ── Right: Campus + Chat ── */}
+        <section className="flex flex-col overflow-hidden bg-white">
+
           {/* Campus canvas */}
-          <div className="flex-1 bg-[#e0f2fe] flex items-stretch justify-stretch overflow-hidden border-b-2 border-[#1a1a1a]">
+          <div className="flex-1 bg-[#e0f2fe] flex items-stretch justify-stretch overflow-hidden border-b-2 border-[#1a1a1a] relative">
             <CampusCanvas completedStages={state.completedStages} style={{ width: "100%", height: "100%" }} />
+            {/* Stage label overlay */}
+            <div className="absolute top-3 left-3 bg-white/90 border-2 border-[#1a1a1a] rounded-xl px-3 py-1.5 text-[11px] font-black text-[#1a1a1a] shadow-[var(--shadow-sm)]">
+              Building: {buildingName}
+            </div>
           </div>
 
-          {/* Chat */}
-          <div className={`flex-shrink-0 ${state.isAI ? "h-[300px]" : "h-[200px]"} border-t-2 border-[#1a1a1a] flex flex-col bg-white`}>
-            <div ref={chatRef} className="flex-1 overflow-y-auto px-4 py-[0.6rem] text-[0.8rem] flex flex-col gap-[0.3rem]">
+          {/* Chat panel */}
+          <div
+            className={`flex-shrink-0 ${state.isAI ? "h-[290px]" : "h-[195px]"} border-t-2 border-[#1a1a1a] flex flex-col bg-white`}
+          >
+            {/* Chat header */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-[#e5e7eb] bg-[#f8f7ff] flex-shrink-0">
+              <span className="text-base">🤖</span>
+              <span className="text-[12px] font-black text-[#7c3aed]">AI Study Buddy</span>
+              <span className="text-[10px] text-[#78716c] font-bold">· Ask anything about your task</span>
+              <div className="ml-auto w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+            </div>
+
+            {/* Messages */}
+            <div ref={chatRef} className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1.5 text-[0.78rem]">
               {messages.length === 0 && (
-                <p className="text-[0.75rem] text-[var(--text-muted)] italic font-bold mt-1">
-                  💡 Stuck? Ask AI Buddy — type a question and hit Send!
+                <p className="text-[0.74rem] text-[#78716c] italic font-bold mt-1">
+                  💡 Stuck? Type a question and hit Send — your AI tutor is ready!
                 </p>
               )}
               {messages.map((m) => (
-                <div key={m.id} className="flex gap-1 min-w-0">
+                <div key={m.id} className={`flex gap-1.5 min-w-0 ${m.isSystem ? "opacity-70" : ""}`}>
                   {!m.isSystem && (
-                    <span className="text-[#7c3aed] font-[900] flex-shrink-0">
-                      {m.sender}
-                      {m.role ? ` (${m.role})` : ""}:
+                    <span
+                      className="font-black flex-shrink-0"
+                      style={{ color: m.role === "Architect" ? "#f59e0b" : "#7c3aed" }}
+                    >
+                      {m.sender}{m.role ? ` (${m.role})` : ""}:
                     </span>
                   )}
-                  <span className={`font-bold min-w-0 break-words ${m.isSystem ? "text-[var(--text-muted)] italic" : "text-[var(--text)]"}`}>
+                  <span
+                    className={`font-bold min-w-0 break-words leading-snug ${
+                      m.isSystem ? "text-[#78716c] italic" : "text-[#1a1a1a]"
+                    }`}
+                  >
                     {m.message}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="flex flex-col border-t-2 border-[#1a1a1a] flex-shrink-0 bg-[var(--surface2)]">
-              <p className="text-[0.7rem] text-[var(--text-muted)] font-bold px-3 pt-[0.35rem]">
-                💬 Ask AI Buddy for hints about your task!
-              </p>
-              <div className="flex gap-2 px-3 pb-2 pt-1">
-                <input
-                  type="text"
-                  placeholder="e.g. how do I print a variable?"
-                  maxLength={200}
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendChat()}
-                  className="flex-1 bg-white/10 border border-white/20 rounded-[10px] px-4 py-[0.65rem] text-[var(--text)] font-bold text-[0.9rem] outline-none placeholder:text-[var(--text-muted)] focus:border-[#fbbf24] focus:shadow-[0_0_0_2px_rgba(251,191,36,0.2)] transition-all duration-150"
-                />
-                <button
-                  onClick={sendChat}
-                  className="flex-none py-[0.65rem] px-4 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-[10px] font-[900] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-[transform,box-shadow] duration-100"
-                  style={{ fontFamily: "var(--font)" }}
-                >
-                  Send
-                </button>
-              </div>
+
+            {/* Chat input */}
+            <div className="flex gap-2 px-3 py-2 border-t border-[#e5e7eb] bg-[#f9fafb] flex-shrink-0">
+              <input
+                type="text"
+                placeholder="Ask a hint, e.g. 'how do I use a for loop?'"
+                maxLength={200}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendChat()}
+                className="flex-1 bg-white border-2 border-[#e5e7eb] rounded-xl px-3 py-2 text-[0.82rem] font-bold text-[#1a1a1a] outline-none placeholder:text-[#9ca3af] focus:border-[#7c3aed] focus:shadow-[0_0_0_2px_rgba(124,58,237,0.12)] transition-all"
+              />
+              <button
+                onClick={sendChat}
+                className="flex-none py-2 px-4 bg-[#7c3aed] text-white border-2 border-[#1a1a1a] rounded-xl font-black text-[0.82rem] cursor-pointer shadow-[var(--shadow-sm)] hover:-translate-y-0.5 transition-all duration-100"
+              >
+                Send
+              </button>
             </div>
           </div>
         </section>
