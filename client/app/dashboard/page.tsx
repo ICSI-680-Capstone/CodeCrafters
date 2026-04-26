@@ -245,7 +245,7 @@ export default function DashboardPage() {
   const totalCombos = BUILDINGS.reduce((sum, b) => sum + (buildingProgress[b.id]?.completedLevels.length ?? 0), 0);
   const campusPct = Math.round((totalCombos / 15) * 100);
   const xpEarned = stats.pointsEarned;
-  const xpPct = Math.min(100, Math.round((xpEarned / 500) * 100));
+  const xpPct = Math.min(100, Math.round((xpEarned / 1500) * 100));
 
   const greetings = campusPct === 0
     ? "Ready to start? Let's build!"
@@ -358,7 +358,7 @@ export default function DashboardPage() {
               <div className="mt-4 max-w-sm">
                 <div className="flex justify-between items-center mb-1.5">
                   <span className="text-[11px] font-black text-[#7c6ff7] tracking-wider">TOTAL XP</span>
-                  <span className="text-[11px] font-black text-white/50">{xpEarned} / 500</span>
+                  <span className="text-[11px] font-black text-white/50">{xpEarned} / 1500</span>
                 </div>
                 <div className="h-2.5 bg-white/8 rounded-full overflow-hidden">
                   <div

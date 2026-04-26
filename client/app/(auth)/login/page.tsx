@@ -111,7 +111,7 @@ function LoginPageInner() {
   const features = [
     { Icon: Layers,   text: "Play as Architect or Builder", sub: "Two roles, one team" },
     { Icon: Terminal, text: "Learn Python step by step",    sub: "From print() to functions" },
-    { Icon: Trophy,   text: "5 buildings · 500 XP total",  sub: "Library to Playground" },
+    { Icon: Trophy,   text: "5 buildings · 1500 XP total", sub: "3 difficulty levels each" },
     { Icon: Bot,      text: "AI Tutor gives you hints",     sub: "Never get stuck alone" },
   ];
 

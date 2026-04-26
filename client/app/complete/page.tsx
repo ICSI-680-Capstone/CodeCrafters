@@ -118,7 +118,7 @@ export default function CompletePage() {
           <p className="text-5xl font-black" style={{ color: "#7c6ff7", textShadow: "0 0 20px rgba(124,111,247,0.4)" }}>
             {score}
           </p>
-          <p className="text-white/30 text-[11px] font-bold mt-1">out of 500 XP</p>
+          <p className="text-white/30 text-[11px] font-bold mt-1">out of 500 XP this run</p>
         </div>
 
         {/* Campus canvas */}
